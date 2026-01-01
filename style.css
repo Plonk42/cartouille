@@ -1,0 +1,652 @@
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #34495e;
+    --accent-color: #3498db;
+    --danger-color: #e74c3c;
+    --text-color: #333;
+    --light-bg: #f5f6fa;
+    --border-color: #ddd;
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    color: var(--text-color);
+}
+
+#app-container {
+    display: flex;
+    height: 100%;
+}
+
+/* Left Sidebar Styles */
+#sidebar {
+    width: 350px;
+    background-color: white;
+    border-right: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Right Sidebar for Elements */
+#elements-sidebar {
+    width: 300px;
+    background-color: white;
+    border-left: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+    order: 3;
+}
+
+.sidebar-header {
+    padding: 15px;
+    background-color: var(--primary-color);
+    color: white;
+    text-align: center;
+}
+
+.sidebar-header h1 {
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.sidebar-header h2 {
+    font-size: 1.2rem;
+    margin: 0;
+    font-weight: 500;
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+}
+
+#sidebar .sidebar-content {
+    padding: 15px;
+}
+
+#elements-sidebar .sidebar-content {
+    padding: 0;
+}
+
+.section {
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 15px;
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+/* Section headers (collapsible) */
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    margin-bottom: 10px;
+    font-size: 1rem;
+    color: var(--secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.section-header:hover {
+    color: var(--accent-color);
+}
+
+.section-toggle {
+    font-size: 0.8rem;
+    transition: transform 0.3s ease;
+}
+
+.section.collapsed .section-toggle {
+    transform: rotate(-90deg);
+}
+
+.section-content {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    max-height: 1000px;
+    opacity: 1;
+}
+
+.section.collapsed .section-content {
+    max-height: 0;
+    opacity: 0;
+    margin: 0;
+    padding: 0;
+}
+
+h3 {
+    margin-bottom: 10px;
+    font-size: 1rem;
+    color: var(--secondary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Search Box */
+.search-box {
+    display: flex;
+    gap: 5px;
+}
+
+#search-input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+#search-btn {
+    padding: 8px 12px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#search-btn:hover {
+    background-color: #2980b9;
+}
+
+/* Tools Grid */
+.tools-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.tool-btn {
+    padding: 10px;
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+}
+
+.tool-btn:hover {
+    background-color: #e2e6ea;
+}
+
+.tool-btn.active {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+/* Layers Control */
+.layer-option {
+    margin-bottom: 8px;
+}
+
+.layer-option label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+select {
+    width: 100%;
+    padding: 6px;
+    margin-top: 5px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+#opacity-control {
+    margin-top: 5px;
+    padding-left: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#opacity-control input {
+    flex: 1;
+}
+
+/* Elements List */
+#elements-list {
+    overflow-y: auto;
+    padding: 15px;
+    height: 100%;
+}
+
+.element-item {
+    background-color: white;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    padding: 0;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.element-item:hover {
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.element-info {
+    flex: 1;
+    padding: 10px;
+    cursor: pointer;
+}
+
+.element-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.element-details {
+    font-size: 0.8rem;
+    color: #7f8c8d;
+}
+
+.element-delete {
+    background: none;
+    border: none;
+    color: #bdc3c7;
+    padding: 0 15px;
+    cursor: pointer;
+    font-size: 1rem;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.element-delete:hover {
+    color: var(--danger-color);
+    background-color: #fff5f5;
+}
+
+/* Data Buttons */
+.data-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.action-btn {
+    flex: 1;
+    padding: 8px;
+    background-color: var(--secondary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.action-btn:hover {
+    background-color: #2c3e50;
+}
+
+/* Settings */
+.settings-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.settings-field label {
+    font-weight: 500;
+    font-size: 0.9em;
+    color: var(--text-color);
+}
+
+.settings-field input[type="text"] {
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-family: monospace;
+}
+
+.settings-field input[type="text"]:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+/* Map Container */
+#map-container {
+    flex: 1;
+    position: relative;
+    order: 2;
+}
+
+#map {
+    height: 100%;
+    width: 100%;
+}
+
+/* Modals */
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 300px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-content h3 {
+    margin-bottom: 15px;
+    color: var(--primary-color);
+}
+
+.modal-content label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.9rem;
+}
+
+.modal-content input {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+.modal-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-buttons button {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+}
+
+.modal-buttons button.primary {
+    background-color: var(--accent-color);
+    color: white;
+    border-color: var(--accent-color);
+}
+
+.modal-buttons button:hover {
+    opacity: 0.9;
+}
+
+/* Leaflet Customization */
+.leaflet-container {
+    cursor: crosshair;
+}
+
+.drawing-cursor {
+    cursor: crosshair !important;
+}
+
+.leaflet-popup-content {
+    min-width: 200px;
+}
+
+.popup-title-edit,
+.popup-desc-edit {
+    box-sizing: border-box;
+    padding: 5px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    font-family: inherit;
+}
+
+.popup-desc-edit {
+    min-height: 60px;
+    resize: vertical;
+}
+
+/* Context Menu */
+.context-menu {
+    position: absolute;
+    background-color: white;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
+    z-index: 3000;
+    min-width: 180px;
+}
+
+.context-menu.hidden {
+    display: none;
+}
+
+.context-menu ul {
+    list-style: none;
+    padding: 5px 0;
+    margin: 0;
+}
+
+.context-menu li {
+    padding: 8px 15px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.context-menu li:hover {
+    background-color: var(--light-bg);
+}
+
+.context-menu li i {
+    width: 20px;
+    text-align: center;
+}
+
+/* Element type */
+.element-item {
+    border-left: 4px solid;
+}
+
+/* Refined Popup */
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    padding: 0;
+    overflow: hidden;
+}
+
+.leaflet-popup-content {
+    margin: 0;
+    width: 280px !important;
+}
+
+.popup-content {
+    padding: 15px;
+}
+
+.popup-field {
+    margin-bottom: 12px;
+}
+
+.popup-label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+    color: var(--secondary-color);
+}
+
+.popup-input,
+.popup-textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.popup-textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.popup-coords {
+    font-family: monospace;
+    color: #666;
+    font-size: 0.85rem;
+    margin-bottom: 15px;
+}
+
+.popup-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.popup-btn {
+    flex: 1;
+    padding: 8px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: white;
+    transition: opacity 0.2s;
+}
+
+.popup-btn:hover {
+    opacity: 0.9;
+}
+
+.popup-btn-save {
+    background-color: #4CAF50;
+    /* Green */
+}
+
+.popup-btn-delete {
+    background-color: #4CAF50;
+    /* Green as per screenshot, though usually red */
+}
+
+
+/* Measurement element types - borders now set dynamically from element color */
+
+/* Measurement status bar */
+.measurement-status {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #fff3cd;
+    border: 1px solid #ffc107;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.85rem;
+}
+
+.measurement-status.hidden {
+    display: none;
+}
+
+.cancel-btn {
+    background: none;
+    border: none;
+    color: #856404;
+    cursor: pointer;
+    padding: 2px 6px;
+    font-size: 1rem;
+}
+
+.cancel-btn:hover {
+    color: #533f03;
+}
+
+/* Measurement result modal content */
+.measurement-result-content {
+    background-color: var(--light-bg);
+    padding: 15px;
+    border-radius: 4px;
+    margin-bottom: 15px;
+    font-family: 'Courier New', monospace;
+}
+
+.measurement-result-content .result-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px dashed var(--border-color);
+}
+
+.measurement-result-content .result-item:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.measurement-result-content .result-label {
+    font-weight: 600;
+    color: var(--secondary-color);
+}
+
+.measurement-result-content .result-value {
+    color: #16a085;
+    font-weight: bold;
+}
+
+/* Computed values in popups (non-editable) */
+.computed-value {
+    display: inline-block;
+    padding: 8px;
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #16a085;
+    width: 100%;
+}

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cartouille</title>
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://unpkg.com/@fortawesome/fontawesome-free@6.7.2/css/all.min.css">
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="app-container">
+        <div id="sidebar">
+            <div class="sidebar-header">
+                <h2>Carte au Trésor</h2>
+            </div>
+
+            <div class="sidebar-content">
+                <!-- Search Section -->
+                <div class="section search-section">
+                    <h3 class="section-header" data-collapse="search-content">
+                        <span>Recherche</span>
+                        <i class="fas fa-chevron-down section-toggle"></i>
+                    </h3>
+                    <div class="section-content" id="search-content">
+                        <div class="search-box">
+                            <input type="text" id="search-input" placeholder="Lieu ou coordonnées (lat, lon)">
+                            <button id="search-btn"><i class="fas fa-search"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Layers Control -->
+                <div class="section layers-section">
+                    <h3 class="section-header" data-collapse="layers-content">
+                        <span>Couches</span>
+                        <i class="fas fa-chevron-down section-toggle"></i>
+                    </h3>
+                    <div class="section-content" id="layers-content">
+                        <div class="layer-option">
+                            <label>Fond de carte:</label>
+                            <select id="base-layer-select">
+                                <option value="scan25">IGN Scan 25</option>
+                                <option value="plan">IGN Plan</option>
+                                <option value="ortho">IGN Ortho</option>
+                                <option value="osm">OpenStreetMap</option>
+                            </select>
+                        </div>
+                        <div class="layer-option">
+                            <label><input type="checkbox" id="overlay-ortho"> Photo aérienne (superposition)</label>
+                            <div id="opacity-control" class="hidden">
+                                <input type="range" id="ortho-opacity" min="0" max="100" value="50">
+                                <span id="opacity-value">50%</span>
+                            </div>
+                        </div>
+                        <div class="layer-option">
+                            <label><input type="checkbox" id="overlay-buildings"> Bâtiments (zoom 16+)</label>
+                        </div>
+                        <div class="layer-option">
+                            <label><input type="checkbox" id="overlay-buffers"> Périmètre bâtiments</label>
+                            <div id="buffer-radius-control" class="hidden">
+                                <input type="range" id="buffer-radius" min="10" max="200" value="50">
+                                <span id="buffer-radius-value">50m</span>
+                            </div>
+                        </div>
+                        <div class="layer-option">
+                            <label><input type="checkbox" id="overlay-parc-chartreuse"> Parc de Chartreuse</label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Drawing Tools -->
+                <div class="section tools-section">
+                    <h3 class="section-header" data-collapse="drawing-content">
+                        <span>Outils de dessin</span>
+                        <i class="fas fa-chevron-down section-toggle"></i>
+                    </h3>
+                    <div class="section-content" id="drawing-content">
+                        <div class="tools-grid">
+                            <button id="tool-marker" class="tool-btn" title="Marqueur"><i
+                                    class="fas fa-map-marker-alt"></i>
+                                Marqueur</button>
+                            <button id="tool-circle" class="tool-btn" title="Cercle"><i class="far fa-circle"></i>
+                                Cercle</button>
+                            <button id="tool-line" class="tool-btn" title="Ligne"><i class="fas fa-minus"></i>
+                                Ligne</button>
+                            <button id="tool-polygon" class="tool-btn" title="Polygone"><i
+                                    class="fas fa-draw-polygon"></i>
+                                Polygone</button>
+                            <button id="tool-bearing" class="tool-btn" title="Ligne directionnelle"><i
+                                    class="fas fa-location-arrow"></i>
+                                Direction</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Outils de mesure -->
+                <div class="section tools-section">
+                    <h3 class="section-header" data-collapse="measurement-content">
+                        <span>Outils de mesure</span>
+                        <i class="fas fa-chevron-down section-toggle"></i>
+                    </h3>
+                    <div class="section-content" id="measurement-content">
+                        <div class="tools-grid">
+                            <button id="measure-distance" class="tool-btn"
+                                title="Mesurer la distance entre deux points">
+                                <i class="fas fa-ruler"></i> Distance
+                            </button>
+                            <button id="measure-area" class="tool-btn" title="Mesurer la surface d'une zone">
+                                <i class="fas fa-vector-square"></i> Surface
+                            </button>
+                            <button id="measure-bearing" class="tool-btn" title="Calculer l'azimut entre deux points">
+                                <i class="fas fa-compass"></i> Azimut
+                            </button>
+                            <button id="measure-center" class="tool-btn" title="Trouver le centre d'une zone">
+                                <i class="fas fa-crosshairs"></i> Centre
+                            </button>
+                            <button id="measure-centroid" class="tool-btn" title="Trouver le centre de masse">
+                                <i class="fas fa-bullseye"></i> Centroïde
+                            </button>
+                            <button id="measure-bbox" class="tool-btn" title="Boîte englobante d'une zone">
+                                <i class="far fa-square"></i> Bbox
+                            </button>
+                            <button id="measure-along" class="tool-btn" title="Point le long d'une ligne">
+                                <i class="fas fa-map-pin"></i> Pt sur ligne
+                            </button>
+                        </div>
+                        <div id="measurement-status" class="measurement-status hidden">
+                            <span id="measurement-instruction"></span>
+                            <button id="cancel-measurement" class="cancel-btn"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Informations -->
+                <div class="section info-section">
+                    <h3 class="section-header" data-collapse="info-content">
+                        <span>Informations</span>
+                        <i class="fas fa-chevron-down section-toggle"></i>
+                    </h3>
+                    <div class="section-content" id="info-content">
+                        <div class="info-item">
+                            <strong>Zoom:</strong> <span id="info-zoom">-</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Bâtiments:</strong> <span id="info-buildings">0</span>
+                        </div>
+                        <div class="info-item">
+                            <strong>Curseur:</strong> <span id="info-coords">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Data Management -->
+                <div class="section data-section">
+                    <h3 class="section-header" data-collapse="data-content">
+                        <span>Données</span>
+                        <i class="fas fa-chevron-down section-toggle"></i>
+                    </h3>
+                    <div class="section-content" id="data-content">
+                        <div class="data-buttons">
+                            <button id="btn-export" class="action-btn"><i class="fas fa-download"></i> Exporter
+                                JSON</button>
+                            <button id="btn-import" class="action-btn"><i class="fas fa-upload"></i> Importer
+                                JSON</button>
+                            <input type="file" id="file-input" accept=".json" style="display: none;">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings -->
+                <div class="section settings-section">
+                    <h3 class="section-header" data-collapse="settings-content">
+                        <span>Paramètres</span>
+                        <i class="fas fa-chevron-down section-toggle"></i>
+                    </h3>
+                    <div class="section-content" id="settings-content">
+                        <div class="settings-field">
+                            <label for="api-key-input">Clé API IGN:</label>
+                            <input type="text" id="api-key-input" placeholder="xxx_xxx_xxx">
+                            <button id="btn-save-api-key" class="action-btn">
+                                <i class="fas fa-save"></i>
+                                Enregistrer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right sidebar for elements list -->
+        <div id="elements-sidebar">
+            <div class="sidebar-header">
+                <h2>Éléments <span id="element-count">(0)</span></h2>
+            </div>
+            <div class="sidebar-content">
+                <div id="elements-list">
+                    <!-- Elements will be added here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <div id="map-container">
+            <div id="map"></div>
+        </div>
+    </div>
+
+    <!-- Context Menu -->
+    <div id="context-menu" class="context-menu hidden">
+        <ul>
+            <li data-action="marker"><i class="fas fa-map-marker-alt" style="color: #e74c3c;"></i> Ajouter un marqueur
+            </li>
+            <li data-action="circle"><i class="far fa-circle" style="color: #e67e22;"></i> Ajouter un cercle</li>
+            <li data-action="line"><i class="fas fa-minus" style="color: #3498db;"></i> Ajouter une ligne</li>
+            <li data-action="polygon"><i class="fas fa-draw-polygon" style="color: #2ecc71;"></i> Ajouter un polygone
+            </li>
+            <li data-action="bearing"><i class="fas fa-location-arrow" style="color: #9b59b6;"></i> Ligne directionnelle
+            </li>
+        </ul>
+    </div>
+
+    <!-- Modals -->
+    <div id="modal-circle" class="modal hidden">
+        <div class="modal-content">
+            <h3>Nouveau Cercle</h3>
+            <label>Rayon (mètres):</label>
+            <input type="number" id="circle-radius" min="1" value="100">
+            <div class="modal-buttons">
+                <button id="btn-cancel-circle">Annuler</button>
+                <button id="btn-confirm-circle" class="primary">Créer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modal-bearing" class="modal hidden">
+        <div class="modal-content">
+            <h3>Nouvelle Ligne Directionnelle</h3>
+            <label>Distance (mètres):</label>
+            <input type="number" id="bearing-distance" min="1" value="1000">
+            <label>Azimut (degrés 0-359):</label>
+            <input type="number" id="bearing-angle" min="0" max="359" value="0">
+            <div class="modal-buttons">
+                <button id="btn-cancel-bearing">Annuler</button>
+                <button id="btn-confirm-bearing" class="primary">Créer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for measurement result -->
+    <div id="modal-measurement-result" class="modal hidden">
+        <div class="modal-content">
+            <h3 id="measurement-result-title">Résultat de mesure</h3>
+            <div id="measurement-result-content" class="measurement-result-content"></div>
+            <label>Titre de l'élément:</label>
+            <input type="text" id="measurement-result-name" placeholder="Nom de la mesure">
+            <div class="modal-buttons">
+                <button id="btn-discard-measurement">Annuler</button>
+                <button id="btn-save-measurement" class="primary">Ajouter aux éléments</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Turf.js -->
+    <script src="https://unpkg.com/@turf/turf@7.1.0/turf.min.js"></script>
+
+    <!-- Parc de Chartreuse Data -->
+    <script src="parc_chartreuse_data.js"></script>
+
+    <!-- Application Logic -->
+    <script src="script.js"></script>
+</body>
+
+</html>
