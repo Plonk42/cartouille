@@ -1,6 +1,6 @@
 # Cartouille
 
-Carte grabouillée, trésor trouvé !
+Carte barbouillée, trésor trouvé !
 
 ## ✨ Fonctionnalités
 
