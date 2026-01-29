@@ -64,6 +64,26 @@ const state = {
  * Utility functions
  */
 
+/**
+ * Create a colored marker icon using Leaflet DivIcon
+ * @param {string} color - The color for the marker (hex or CSS color)
+ * @returns {L.DivIcon} A Leaflet DivIcon with the specified color
+ */
+function createColoredMarkerIcon(color) {
+    const markerHtml = `
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 36" width="24" height="36">
+            <path fill="${color}" stroke="#fff" stroke-width="1.5" d="M12 0C5.4 0 0 5.4 0 12c0 7.2 12 24 12 24s12-16.8 12-24c0-6.6-5.4-12-12-12z"/>
+            <circle fill="#fff" cx="12" cy="12" r="5"/>
+        </svg>
+    `;
+    return L.divIcon({
+        html: markerHtml,
+        className: 'colored-marker-icon',
+        iconSize: [24, 36],
+        iconAnchor: [12, 36],
+        popupAnchor: [0, -36]
+    });
+}
 
 function calculateDistance(p1, p2) {
     return state.map.distance([p1.lat, p1.lng], [p2.lat, p2.lng]);
@@ -1005,7 +1025,10 @@ function updateElementFromPopup(feature, div) {
     if (colorInput) {
         props.color = colorInput.value;
         // Apply color to layer (handle both simple layers and LayerGroups)
-        if (layer.setStyle) {
+        if (type === 'marker' && layer.setIcon) {
+            // Update marker icon with new color
+            layer.setIcon(createColoredMarkerIcon(props.color));
+        } else if (layer.setStyle) {
             layer.setStyle({ color: props.color, fillColor: props.color });
         } else if (layer instanceof L.LayerGroup) {
             layer.eachLayer(subLayer => {
@@ -1712,9 +1735,13 @@ function createLayerFromFeature(feature) {
         });
         layer.feature = feature; // Attach feature to layer
     } else if (type === 'marker') {
-        // Create draggable marker
+        // Create draggable marker with colored icon
         const coords = feature.geometry.coordinates;
-        layer = L.marker([coords[1], coords[0]], { draggable: true });
+        const markerColor = props.color || CONFIG.colors.default;
+        layer = L.marker([coords[1], coords[0]], {
+            draggable: true,
+            icon: createColoredMarkerIcon(markerColor)
+        });
         layer.feature = feature;
 
         // Update feature on drag

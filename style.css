@@ -429,6 +429,12 @@ select {
     cursor: crosshair;
 }
 
+/* Colored marker icons */
+.colored-marker-icon {
+    background: transparent;
+    border: none;
+}
+
 .drawing-cursor {
     cursor: crosshair !important;
 }
