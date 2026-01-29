@@ -41,6 +41,8 @@ const state = {
     activeTool: null,
     features: [],
     featureLayers: new Map(),
+    folders: [],
+    featureVisibility: new Map(), // Track visibility of each feature by id
     drawing: {
         startPoint: null,
         points: [],
@@ -634,7 +636,8 @@ function createElement(type, data) {
         type: type,
         title: data.title,
         description: data.description || '',
-        color: data.color
+        color: data.color,
+        folderId: data.folderId || null // Folder assignment
     };
 
     switch (type) {
@@ -688,6 +691,7 @@ function createElement(type, data) {
     // Store feature and layer
     state.features.push(feature);
     state.featureLayers.set(id, layer);
+    state.featureVisibility.set(id, true); // Visible by default
 
     // Bind popup
     layer.bindPopup(() => createPopupContent(feature));
@@ -1274,9 +1278,8 @@ function updateElementList() {
     const list = document.getElementById('elements-list');
     list.innerHTML = '';
 
+    // Gather all elements with their data
     const allElements = [];
-
-    // Use only features (new GeoJSON system)
     state.features.forEach(feature => {
         const layer = state.featureLayers.get(feature.id);
         const props = feature.properties;
@@ -1284,72 +1287,352 @@ function updateElementList() {
             id: feature.id,
             type: props.type,
             data: extractDataFromFeature(feature),
-            layer: layer
+            layer: layer,
+            folderId: props.folderId || null,
+            visible: state.featureVisibility.get(feature.id) !== false
         });
     });
 
-    document.getElementById('element-count').textContent = `(${allElements.length})`;
+    // Add folder button
+    const addFolderBtn = document.createElement('button');
+    addFolderBtn.className = 'add-folder-btn';
+    addFolderBtn.innerHTML = '<i class="fas fa-folder-plus"></i> Nouveau dossier';
+    addFolderBtn.addEventListener('click', createFolder);
+    list.appendChild(addFolderBtn);
 
-    allElements.forEach(el => {
-        const item = document.createElement('div');
-        item.className = `element-item type-${el.type}`;
+    // Render folders
+    state.folders.forEach(folder => {
+        const folderElements = allElements.filter(el => el.folderId === folder.id);
+        const folderEl = createFolderElement(folder, folderElements);
+        list.appendChild(folderEl);
+    });
 
-        // Set border color from element color
-        const borderColor = el.data.color || CONFIG.colors.default;
-        item.style.borderLeftColor = borderColor;
+    // Root elements container (elements without folder)
+    const rootElements = allElements.filter(el => !el.folderId);
+    if (rootElements.length > 0 || allElements.length === 0) {
+        const rootContainer = document.createElement('div');
+        rootContainer.className = 'root-elements';
+        rootContainer.dataset.folderId = '';
 
-        let details = '';
-        if (el.type === 'circle') details = `Rayon: ${el.data.radius}m`;
-        else if (el.type === 'line') details = `Dist: ${(el.data.distance / 1000).toFixed(2)}km`;
-        else if (el.type === 'bearing') details = `${(el.data.distance / 1000).toFixed(2)}km @ ${el.data.bearing}°`;
-        else if (el.type === 'polygon') details = `${el.data.points ? el.data.points.length : 0} pts`;
-        else if (el.type === 'measurement-distance') {
-            details = el.data.distanceM < 1000 ? `${el.data.distanceM.toFixed(2)} m` : `${el.data.distanceKm.toFixed(3)} km`;
-        }
-        else if (el.type === 'measurement-area') {
-            details = el.data.areaM2 < 10000 ? `${el.data.areaM2.toFixed(2)} m²` : `${el.data.areaHa.toFixed(4)} ha`;
-        }
-        else if (el.type === 'measurement-bearing') {
-            details = `${el.data.bearing.toFixed(1)}° (${el.data.cardinal})`;
-        }
-        else if (el.type === 'measurement-center') {
-            details = `${el.data.center.lat.toFixed(4)}, ${el.data.center.lng.toFixed(4)}`;
-        }
-        else if (el.type === 'measurement-centroid') {
-            details = `${el.data.centroid.lat.toFixed(4)}, ${el.data.centroid.lng.toFixed(4)}`;
-        }
-        else if (el.type === 'measurement-bbox') {
-            details = `${el.data.width.toFixed(1)}m × ${el.data.height.toFixed(1)}m`;
-        }
-        else if (el.type === 'measurement-along') {
-            details = el.data.lengthM < 1000 ? `${el.data.lengthM.toFixed(2)} m` : `${el.data.lengthKm.toFixed(3)} km`;
-        }
-        else details = `${el.data.lat ? el.data.lat.toFixed(4) : ''}, ${el.data.lng ? el.data.lng.toFixed(4) : ''}`;
+        // Make root container a drop target
+        rootContainer.addEventListener('dragover', handleDragOver);
+        rootContainer.addEventListener('dragleave', handleDragLeave);
+        rootContainer.addEventListener('drop', handleDrop);
 
-        item.innerHTML = `
-            <div class="element-info">
-                <div class="element-title">${getIcon(el.type)} ${el.data.title}</div>
-                <div class="element-details">${details}</div>
-            </div>
-            <button class="element-delete"><i class="fas fa-trash"></i></button>
-        `;
-
-        item.querySelector('.element-delete').addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteElement(el.id);
+        rootElements.forEach(el => {
+            const item = createElementItem(el);
+            rootContainer.appendChild(item);
         });
+        list.appendChild(rootContainer);
+    }
 
-        item.querySelector('.element-info').addEventListener('click', () => {
-            if (el.layer.getBounds) {
-                state.map.fitBounds(el.layer.getBounds(), { padding: [50, 50] });
-            } else if (el.layer.getLatLng) {
-                state.map.setView(el.layer.getLatLng(), 14);
-                el.layer.openPopup();
+    // Update element count
+    document.getElementById('element-count').textContent = `(${allElements.length})`;
+}
+
+function createFolder() {
+    const id = 'folder-' + Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    const folder = {
+        id: id,
+        name: 'Nouveau dossier',
+        collapsed: false,
+        visible: true
+    };
+    state.folders.push(folder);
+    updateElementList();
+    saveState();
+}
+
+function createFolderElement(folder, elements) {
+    const folderEl = document.createElement('div');
+    folderEl.className = 'folder-item' + (folder.collapsed ? ' collapsed' : '');
+    folderEl.dataset.folderId = folder.id;
+
+    const visibleCount = elements.filter(el => el.visible).length;
+
+    folderEl.innerHTML = `
+        <div class="folder-header">
+            <span class="folder-toggle"><i class="fas fa-chevron-down"></i></span>
+            <span class="folder-title">${folder.name}</span>
+            <span class="folder-count">${elements.length}</span>
+            <div class="folder-actions">
+                <button class="folder-btn folder-visibility ${!folder.visible ? 'hidden-state' : ''}" title="Afficher/Masquer">
+                    <i class="fas ${folder.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
+                </button>
+                <button class="folder-btn folder-edit" title="Renommer">
+                    <i class="fas fa-pencil-alt"></i>
+                </button>
+                <button class="folder-btn folder-delete" title="Supprimer le dossier">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="folder-content"></div>
+    `;
+
+    const header = folderEl.querySelector('.folder-header');
+    const content = folderEl.querySelector('.folder-content');
+    const titleSpan = folderEl.querySelector('.folder-title');
+
+    // Toggle collapse
+    header.addEventListener('click', (e) => {
+        if (e.target.closest('.folder-actions')) return;
+        folder.collapsed = !folder.collapsed;
+        folderEl.classList.toggle('collapsed', folder.collapsed);
+        saveState();
+    });
+
+    // Visibility toggle
+    folderEl.querySelector('.folder-visibility').addEventListener('click', (e) => {
+        e.stopPropagation();
+        folder.visible = !folder.visible;
+        toggleFolderVisibility(folder);
+        updateElementList();
+        saveState();
+    });
+
+    // Edit folder name
+    folderEl.querySelector('.folder-edit').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'folder-title-input';
+        input.value = folder.name;
+        titleSpan.replaceWith(input);
+        input.focus();
+        input.select();
+
+        const saveTitle = () => {
+            folder.name = input.value.trim() || 'Dossier';
+            const newSpan = document.createElement('span');
+            newSpan.className = 'folder-title';
+            newSpan.textContent = folder.name;
+            input.replaceWith(newSpan);
+            saveState();
+        };
+
+        input.addEventListener('blur', saveTitle);
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') saveTitle();
+            if (ev.key === 'Escape') {
+                input.value = folder.name;
+                saveTitle();
             }
         });
-
-        list.appendChild(item);
     });
+
+    // Delete folder
+    folderEl.querySelector('.folder-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm('Supprimer ce dossier ? Les éléments seront déplacés à la racine.')) {
+            // Move elements to root
+            elements.forEach(el => {
+                const feature = state.features.find(f => f.id === el.id);
+                if (feature) feature.properties.folderId = null;
+            });
+            // Remove folder
+            const idx = state.folders.findIndex(f => f.id === folder.id);
+            if (idx !== -1) state.folders.splice(idx, 1);
+            updateElementList();
+            saveState();
+        }
+    });
+
+    // Drag and drop for folder content
+    content.dataset.folderId = folder.id;
+    content.addEventListener('dragover', handleDragOver);
+    content.addEventListener('dragleave', handleDragLeave);
+    content.addEventListener('drop', handleDrop);
+
+    // Add elements to folder content
+    elements.forEach(el => {
+        const item = createElementItem(el);
+        content.appendChild(item);
+    });
+
+    return folderEl;
+}
+
+function createElementItem(el) {
+    const item = document.createElement('div');
+    item.className = `element-item type-${el.type}${!el.visible ? ' element-hidden' : ''}`;
+    item.draggable = true;
+    item.dataset.elementId = el.id;
+
+    // Set border color from element color
+    const borderColor = el.data.color || CONFIG.colors.default;
+    item.style.borderLeftColor = borderColor;
+
+    let details = '';
+    if (el.type === 'circle') details = `Rayon: ${el.data.radius}m`;
+    else if (el.type === 'line') details = `Dist: ${(el.data.distance / 1000).toFixed(2)}km`;
+    else if (el.type === 'bearing') details = `${(el.data.distance / 1000).toFixed(2)}km @ ${el.data.bearing}°`;
+    else if (el.type === 'polygon') details = `${el.data.points ? el.data.points.length : 0} pts`;
+    else if (el.type === 'measurement-distance') {
+        details = el.data.distanceM < 1000 ? `${el.data.distanceM.toFixed(2)} m` : `${el.data.distanceKm.toFixed(3)} km`;
+    }
+    else if (el.type === 'measurement-area') {
+        details = el.data.areaM2 < 10000 ? `${el.data.areaM2.toFixed(2)} m²` : `${el.data.areaHa.toFixed(4)} ha`;
+    }
+    else if (el.type === 'measurement-bearing') {
+        details = `${el.data.bearing.toFixed(1)}° (${el.data.cardinal})`;
+    }
+    else if (el.type === 'measurement-center') {
+        details = `${el.data.center.lat.toFixed(4)}, ${el.data.center.lng.toFixed(4)}`;
+    }
+    else if (el.type === 'measurement-centroid') {
+        details = `${el.data.centroid.lat.toFixed(4)}, ${el.data.centroid.lng.toFixed(4)}`;
+    }
+    else if (el.type === 'measurement-bbox') {
+        details = `${el.data.width.toFixed(1)}m × ${el.data.height.toFixed(1)}m`;
+    }
+    else if (el.type === 'measurement-along') {
+        details = el.data.lengthM < 1000 ? `${el.data.lengthM.toFixed(2)} m` : `${el.data.lengthKm.toFixed(3)} km`;
+    }
+    else details = `${el.data.lat ? el.data.lat.toFixed(4) : ''}, ${el.data.lng ? el.data.lng.toFixed(4) : ''}`;
+
+    item.innerHTML = `
+        <button class="element-visibility ${!el.visible ? 'hidden-state' : ''}" title="Afficher/Masquer">
+            <i class="fas ${el.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
+        </button>
+        <div class="element-info">
+            <div class="element-title">${getIcon(el.type)} ${el.data.title}</div>
+            <div class="element-details">${details}</div>
+        </div>
+        <button class="element-edit" title="Modifier"><i class="fas fa-pencil-alt"></i></button>
+        <button class="element-delete" title="Supprimer"><i class="fas fa-trash"></i></button>
+    `;
+
+    // Visibility toggle
+    item.querySelector('.element-visibility').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleElementVisibility(el.id);
+    });
+
+    // Edit button - open popup
+    item.querySelector('.element-edit').addEventListener('click', (e) => {
+        e.stopPropagation();
+        // Zoom to element and open popup
+        if (el.layer.getBounds) {
+            state.map.fitBounds(el.layer.getBounds(), { padding: [50, 50] });
+        } else if (el.layer.getLatLng) {
+            state.map.setView(el.layer.getLatLng(), Math.max(state.map.getZoom(), 14));
+        }
+        // Open popup after a small delay to let the map settle
+        setTimeout(() => {
+            el.layer.openPopup();
+        }, 100);
+    });
+
+    // Delete button
+    item.querySelector('.element-delete').addEventListener('click', (e) => {
+        e.stopPropagation();
+        deleteElement(el.id);
+    });
+
+    // Click to focus/zoom
+    item.querySelector('.element-info').addEventListener('click', () => {
+        if (el.layer.getBounds) {
+            state.map.fitBounds(el.layer.getBounds(), { padding: [50, 50] });
+        } else if (el.layer.getLatLng) {
+            state.map.setView(el.layer.getLatLng(), 14);
+            el.layer.openPopup();
+        }
+    });
+
+    // Drag events
+    item.addEventListener('dragstart', handleDragStart);
+    item.addEventListener('dragend', handleDragEnd);
+
+    return item;
+}
+
+function toggleElementVisibility(id) {
+    const currentVisibility = state.featureVisibility.get(id) !== false;
+    const newVisibility = !currentVisibility;
+    state.featureVisibility.set(id, newVisibility);
+
+    const layer = state.featureLayers.get(id);
+    if (layer) {
+        if (newVisibility) {
+            layer.addTo(state.map);
+        } else {
+            state.map.removeLayer(layer);
+        }
+    }
+
+    updateElementList();
+    saveState();
+}
+
+function toggleFolderVisibility(folder) {
+    // Toggle visibility of all elements in folder
+    state.features.forEach(feature => {
+        if (feature.properties.folderId === folder.id) {
+            state.featureVisibility.set(feature.id, folder.visible);
+            const layer = state.featureLayers.get(feature.id);
+            if (layer) {
+                if (folder.visible) {
+                    layer.addTo(state.map);
+                } else {
+                    state.map.removeLayer(layer);
+                }
+            }
+        }
+    });
+}
+
+// Drag and drop handlers
+let draggedElementId = null;
+
+function handleDragStart(e) {
+    draggedElementId = e.target.dataset.elementId;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    draggedElementId = null;
+    // Remove drag-over styling from all containers
+    document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    e.currentTarget.classList.add('drag-over');
+}
+
+function handleDragLeave(e) {
+    e.currentTarget.classList.remove('drag-over');
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('drag-over');
+
+    if (!draggedElementId) return;
+
+    const targetFolderId = e.currentTarget.dataset.folderId || null;
+    const feature = state.features.find(f => f.id === draggedElementId);
+
+    if (feature) {
+        feature.properties.folderId = targetFolderId;
+
+        // If moving to a hidden folder, hide the element
+        if (targetFolderId) {
+            const folder = state.folders.find(f => f.id === targetFolderId);
+            if (folder && !folder.visible) {
+                state.featureVisibility.set(feature.id, false);
+                const layer = state.featureLayers.get(feature.id);
+                if (layer) state.map.removeLayer(layer);
+            }
+        }
+
+        updateElementList();
+        saveState();
+    }
 }
 
 function extractDataFromFeature(feature) {
@@ -1360,7 +1643,8 @@ function extractDataFromFeature(feature) {
     const data = {
         title: props.title || '',
         description: props.description || '',
-        color: props.color || CONFIG.colors.default
+        color: props.color || CONFIG.colors.default,
+        folderId: props.folderId || null
     };
 
     if (type === 'marker') {
@@ -1393,6 +1677,7 @@ function deleteElement(id) {
             state.map.removeLayer(layer);
             state.featureLayers.delete(id);
         }
+        state.featureVisibility.delete(id);
         state.features.splice(featureIndex, 1);
         updateElementList();
         saveState();
@@ -1474,7 +1759,8 @@ function elementToGeoJSON(element) {
         type: type,
         title: data.title || '',
         description: data.description || '',
-        color: data.color || CONFIG.colors.default
+        color: data.color || CONFIG.colors.default,
+        folderId: data.folderId || null
     };
 
     switch (type) {
@@ -1723,13 +2009,18 @@ function geoJSONToElement(feature) {
 /**
  * Restore a feature from GeoJSON
  */
-function restoreFeature(feature) {
+function restoreFeature(feature, visible = true) {
     const layer = createLayerFromFeature(feature);
-    layer.addTo(state.map);
+
+    // Only add to map if visible
+    if (visible) {
+        layer.addTo(state.map);
+    }
 
     // Store feature and layer
     state.features.push(feature);
     state.featureLayers.set(feature.id, layer);
+    state.featureVisibility.set(feature.id, visible);
 
     // Bind popup
     layer.bindPopup(() => createPopupContent(feature));
@@ -1737,14 +2028,19 @@ function restoreFeature(feature) {
     updateElementList();
 }
 
-function restoreMeasurementFeature(feature) {
+function restoreMeasurementFeature(feature, visible = true) {
     // Use the new GeoJSON-based system
     const layer = createLayerFromFeature(feature);
-    layer.addTo(state.map);
+
+    // Only add to map if visible
+    if (visible) {
+        layer.addTo(state.map);
+    }
 
     // Store feature and layer
     state.features.push(feature);
     state.featureLayers.set(feature.id, layer);
+    state.featureVisibility.set(feature.id, visible);
 
     // Bind new-style popup with color support
     if (layer instanceof L.LayerGroup) {
@@ -2400,6 +2696,7 @@ function saveMeasurementAsElement() {
     const feature = elementToGeoJSON(element);
     state.features.push(feature);
     state.featureLayers.set(id, layer);
+    state.featureVisibility.set(id, true); // Visible by default
 
     // Bind popup using unified feature-based approach
     if (layer instanceof L.LayerGroup) {
@@ -2425,14 +2722,22 @@ function saveMeasurementAsElement() {
 
 function saveState() {
     // Create GeoJSON FeatureCollection directly from features
+    // Include visibility state in each feature's properties
+    const featuresWithVisibility = state.features.map(f => {
+        const featureCopy = JSON.parse(JSON.stringify(f));
+        featureCopy.properties._visible = state.featureVisibility.get(f.id) !== false;
+        return featureCopy;
+    });
+
     const geoJSON = {
         type: 'FeatureCollection',
-        features: state.features,
+        features: featuresWithVisibility,
         properties: {
             center: state.map.getCenter(),
             zoom: state.map.getZoom(),
             savedAt: new Date().toISOString(),
-            version: '3.0' // Version with native GeoJSON support
+            version: '4.0', // Version with folders and visibility support
+            folders: state.folders
         }
     };
 
@@ -2452,13 +2757,19 @@ function restoreState() {
             state.map.setView(props.center, props.zoom);
         }
 
+        // Restore folders
+        if (props.folders) {
+            state.folders = props.folders;
+        }
+
         // Restore features directly
         data.features.forEach(feature => {
             const type = feature.properties.type;
+            const visible = feature.properties._visible !== false;
             if (type.startsWith('measurement-')) {
-                restoreMeasurementFeature(feature);
+                restoreMeasurementFeature(feature, visible);
             } else {
-                restoreFeature(feature);
+                restoreFeature(feature, visible);
             }
         });
     } catch (error) {
@@ -2492,6 +2803,8 @@ function initDataManagement() {
                 state.featureLayers.forEach(layer => state.map.removeLayer(layer));
                 state.features = [];
                 state.featureLayers.clear();
+                state.featureVisibility.clear();
+                state.folders = [];
 
                 // Restore map view
                 const props = data.properties || {};
@@ -2499,13 +2812,19 @@ function initDataManagement() {
                     state.map.setView(props.center, props.zoom);
                 }
 
+                // Restore folders
+                if (props.folders) {
+                    state.folders = props.folders;
+                }
+
                 // Import features directly
                 data.features.forEach(feature => {
                     const type = feature.properties.type;
+                    const visible = feature.properties._visible !== false;
                     if (type.startsWith('measurement-')) {
-                        restoreMeasurementFeature(feature);
+                        restoreMeasurementFeature(feature, visible);
                     } else {
-                        restoreFeature(feature);
+                        restoreFeature(feature, visible);
                     }
                 });
 

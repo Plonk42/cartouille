@@ -270,16 +270,22 @@ select {
     color: #7f8c8d;
 }
 
+.element-edit,
 .element-delete {
     background: none;
     border: none;
     color: #bdc3c7;
-    padding: 0 15px;
+    padding: 0 8px;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9rem;
     height: 100%;
     display: flex;
     align-items: center;
+}
+
+.element-edit:hover {
+    color: var(--accent-color);
+    background-color: #f0f7ff;
 }
 
 .element-delete:hover {
@@ -649,4 +655,183 @@ select {
     font-size: 0.85rem;
     color: #16a085;
     width: 100%;
+}
+
+/* Folder and Element Visibility Styles */
+.folder-item {
+    background-color: var(--light-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    margin-bottom: 10px;
+    overflow: hidden;
+}
+
+.folder-header {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    background-color: var(--secondary-color);
+    color: white;
+    cursor: pointer;
+    user-select: none;
+}
+
+.folder-header:hover {
+    background-color: var(--primary-color);
+}
+
+.folder-toggle {
+    width: 20px;
+    text-align: center;
+    transition: transform 0.2s;
+}
+
+.folder-item.collapsed .folder-toggle {
+    transform: rotate(-90deg);
+}
+
+.folder-title {
+    flex: 1;
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-left: 8px;
+}
+
+.folder-title-input {
+    flex: 1;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.folder-title-input:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.folder-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.folder-btn {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.7);
+    cursor: pointer;
+    padding: 4px 6px;
+    font-size: 0.85rem;
+    border-radius: 3px;
+}
+
+.folder-btn:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.folder-btn.hidden-state {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.folder-content {
+    padding: 5px;
+    max-height: 2000px;
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+}
+
+.folder-item.collapsed .folder-content {
+    max-height: 0;
+    padding: 0 5px;
+}
+
+.folder-count {
+    font-size: 0.75rem;
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 5px;
+}
+
+/* Element visibility toggle */
+.element-item {
+    position: relative;
+}
+
+.element-visibility {
+    background: none;
+    border: none;
+    color: var(--accent-color);
+    cursor: pointer;
+    padding: 0 10px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+}
+
+.element-visibility:hover {
+    color: var(--primary-color);
+}
+
+.element-visibility.hidden-state {
+    color: #bdc3c7;
+}
+
+.element-item.element-hidden {
+    opacity: 0.5;
+}
+
+.element-item.element-hidden .element-title {
+    text-decoration: line-through;
+    color: #999;
+}
+
+/* Root elements container (elements without folder) */
+.root-elements {
+    margin-bottom: 10px;
+}
+
+/* Add folder button */
+.add-folder-btn {
+    width: 100%;
+    padding: 10px;
+    background-color: var(--light-bg);
+    border: 2px dashed var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: var(--secondary-color);
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.add-folder-btn:hover {
+    background-color: #e8e9ed;
+    border-color: var(--secondary-color);
+}
+
+/* Drag and drop styling */
+.element-item.dragging {
+    opacity: 0.5;
+}
+
+.folder-content.drag-over {
+    background-color: rgba(52, 152, 219, 0.1);
+    border: 2px dashed var(--accent-color);
+}
+
+.root-elements.drag-over {
+    background-color: rgba(52, 152, 219, 0.1);
+    border: 2px dashed var(--accent-color);
+    border-radius: 4px;
+    min-height: 50px;
 }
