@@ -87,7 +87,7 @@ function getIcon(type) {
     const icons = {
         'marker': '<i class="fas fa-map-marker-alt"></i>',
         'circle': '<i class="far fa-circle"></i>',
-        'line': '<i class="fas fa-minus"></i>',
+        'line': '<i class="fas fa-route"></i>',
         'bearing': '<i class="fas fa-location-arrow"></i>',
         'polygon': '<i class="fas fa-draw-polygon"></i>',
         'measurement-distance': '<i class="fas fa-ruler"></i>',
@@ -378,11 +378,18 @@ function handleMouseMove(e) {
             fillOpacity: 0.1,
             interactive: false
         }).addTo(state.map);
+    } else if (state.activeTool === 'line' && state.drawing.points && state.drawing.points.length > 0) {
+        // For line drawing, show line preview extending from last point
+        const lastPoint = state.drawing.points[state.drawing.points.length - 1];
+        state.drawing.cursorLayer = L.polyline([[lastPoint.lat, lastPoint.lng], [lat, lng]], {
+            color: 'red',
+            dashArray: '5, 10',
+            weight: 2,
+            interactive: false
+        }).addTo(state.map);
     } else {
         let points = [];
-        if (state.activeTool === 'line' && state.drawing.startPoint) {
-            points = [state.drawing.startPoint, e.latlng];
-        } else if (state.activeTool === 'bearing' && state.drawing.startPoint) {
+        if (state.activeTool === 'bearing' && state.drawing.startPoint) {
             points = [state.drawing.startPoint, e.latlng];
         }
 
@@ -445,23 +452,22 @@ function handleMapDoubleClick(e) {
         return;
     }
 
-    if (state.activeTool !== 'polygon') return;
-    L.DomEvent.stopPropagation(e);
-
-    // Any double-click finishes the polygon if we have at least 3 points
-    if (state.drawing.points && state.drawing.points.length >= 3) {
-        finishPolygon();
+    // Handle line drawing double-click
+    if (state.activeTool === 'line') {
+        L.DomEvent.stopPropagation(e);
+        if (state.drawing.points && state.drawing.points.length >= 2) {
+            finishLine();
+        }
+        return;
     }
-}
 
-function updateTempLayer() {
-    clearCursorLayer();
-}
-
-function clearCursorLayer() {
-    if (state.drawing.cursorLayer) {
-        state.map.removeLayer(state.drawing.cursorLayer);
-        state.drawing.cursorLayer = null;
+    if (state.activeTool === 'polygon') {
+        L.DomEvent.stopPropagation(e);
+        // Any double-click finishes the polygon if we have at least 3 points
+        if (state.drawing.points && state.drawing.points.length >= 3) {
+            finishPolygon();
+        }
+        return;
     }
 }
 /**
@@ -473,18 +479,15 @@ function setActiveTool(tool) {
     clearCursorLayer();
 
     // Cleanup previous tool state
-    if (state.activeTool === 'polygon') {
+    if (state.activeTool === 'polygon' || state.activeTool === 'line') {
         state.map.doubleClickZoom.enable();
         resetDrawingState();
-    }
-    if (state.activeTool === 'line') {
-        state.drawing.startPoint = null;
     }
 
     state.activeTool = tool;
 
     // Setup new tool state
-    if (tool === 'polygon') {
+    if (tool === 'polygon' || tool === 'line') {
         state.map.doubleClickZoom.disable();
     }
 
@@ -546,18 +549,53 @@ function updateTempLayer() {
 }
 
 function handleLineClick(lat, lng) {
-    if (!state.drawing.startPoint) {
-        state.drawing.startPoint = { lat, lng };
-    } else {
+    if (!state.drawing.points) state.drawing.points = [];
+
+    state.drawing.points.push({ lat, lng });
+    updateLineTempLayer();
+    clearCursorLayer();
+}
+
+function updateLineTempLayer() {
+    if (state.drawing.tempLayer) state.map.removeLayer(state.drawing.tempLayer);
+
+    if (state.drawing.points.length >= 1) {
+        const pointsLatLng = state.drawing.points.map(p => [p.lat, p.lng]);
+        state.drawing.tempLayer = L.layerGroup();
+
+        // Add polyline for clicked points
+        if (state.drawing.points.length >= 2) {
+            L.polyline(pointsLatLng, {
+                color: 'red',
+                weight: 2,
+                interactive: false
+            }).addTo(state.drawing.tempLayer);
+        }
+
+        // Add markers at each vertex
+        state.drawing.points.forEach((p, i) => {
+            L.circleMarker([p.lat, p.lng], {
+                radius: i === 0 ? 8 : 5,
+                color: 'red',
+                fillColor: i === 0 ? '#ff6b6b' : 'red',
+                fillOpacity: 1,
+                interactive: false
+            }).addTo(state.drawing.tempLayer);
+        });
+
+        state.drawing.tempLayer.addTo(state.map);
+    }
+}
+
+function finishLine() {
+    if (state.drawing.points.length >= 2) {
         createElement('line', {
-            start: state.drawing.startPoint,
-            end: { lat, lng },
+            points: state.drawing.points,
             title: 'Ligne'
         });
-        state.drawing.startPoint = null;
-        setActiveTool(null);
     }
-    clearCursorLayer();
+    resetDrawingState();
+    setActiveTool(null);
 }
 
 function handlePolygonClick(lat, lng) {
@@ -608,6 +646,23 @@ function createElement(type, data) {
             feature = turf.point([data.center.lng, data.center.lat], properties);
             break;
         case 'line':
+            // Support both old format (start/end) and new format (points array)
+            if (data.points) {
+                // New multi-point line format
+                const lineCoords = data.points.map(p => [p.lng, p.lat]);
+                const line = turf.lineString(lineCoords);
+                properties.distance = turf.length(line, { units: 'meters' });
+                feature = turf.lineString(lineCoords, properties);
+            } else {
+                // Old two-point format for backward compatibility
+                if (!data.distance) data.distance = state.map.distance([data.start.lat, data.start.lng], [data.end.lat, data.end.lng]);
+                properties.distance = data.distance;
+                feature = turf.lineString([
+                    [data.start.lng, data.start.lat],
+                    [data.end.lng, data.end.lat]
+                ], properties);
+            }
+            break;
         case 'bearing':
             if (!data.distance) data.distance = state.map.distance([data.start.lat, data.start.lng], [data.end.lat, data.end.lng]);
             properties.distance = data.distance;
@@ -687,7 +742,33 @@ function createPopupContent(feature) {
         fieldsHtml += createPopupField('Centre Lat', 'number', geom.coordinates[1], 'lat-input');
         fieldsHtml += createPopupField('Centre Lng', 'number', geom.coordinates[0], 'lng-input');
         fieldsHtml += createPopupField('Rayon (m)', 'number', props.radius, 'radius-input');
-    } else if (type === 'line' || type === 'bearing') {
+    } else if (type === 'line') {
+        // Handle both old 2-point format and new multi-point format
+        const coords = geom.coordinates;
+        if (coords.length === 2) {
+            // Old 2-point format
+            fieldsHtml += createPopupField('Départ Lat', 'number', coords[0][1], 'start-lat-input');
+            fieldsHtml += createPopupField('Départ Lng', 'number', coords[0][0], 'start-lng-input');
+            fieldsHtml += createPopupField('Arrivée Lat', 'number', coords[1][1], 'end-lat-input');
+            fieldsHtml += createPopupField('Arrivée Lng', 'number', coords[1][0], 'end-lng-input');
+        } else {
+            // New multi-point format - use textarea like polygon
+            const pointsStr = coords.map(p => `${p[1].toFixed(6)}, ${p[0].toFixed(6)}`).join('\n');
+            fieldsHtml += `
+                <div class="popup-field">
+                    <label class="popup-label">Points (Lat, Lng):</label>
+                    <textarea class="popup-textarea points-input" style="height: 100px;">${pointsStr}</textarea>
+                </div>`;
+        }
+        // Show distance
+        if (props.distance !== undefined) {
+            fieldsHtml += `
+                <div class="popup-field">
+                    <label class="popup-label">Longueur:</label>
+                    <span class="computed-value">${props.distance < 1000 ? props.distance.toFixed(2) + ' m' : (props.distance / 1000).toFixed(3) + ' km'}</span>
+                </div>`;
+        }
+    } else if (type === 'bearing') {
         fieldsHtml += createPopupField('Départ Lat', 'number', geom.coordinates[0][1], 'start-lat-input');
         fieldsHtml += createPopupField('Départ Lng', 'number', geom.coordinates[0][0], 'start-lng-input');
         fieldsHtml += createPopupField('Arrivée Lat', 'number', geom.coordinates[1][1], 'end-lat-input');
@@ -951,7 +1032,33 @@ function updateElementFromPopup(feature, div) {
             props.radius = radius;
             layer.setRadius(radius);
         }
-    } else if (type === 'line' || type === 'bearing') {
+    } else if (type === 'line') {
+        // Handle both old 2-point format and new multi-point format
+        const pointsInput = div.querySelector('.points-input');
+        if (pointsInput) {
+            // Multi-point format
+            const pointsText = pointsInput.value;
+            const newPoints = parsePointsFromText(pointsText);
+            if (newPoints.length >= 2) {
+                feature.geometry.coordinates = newPoints.map(p => [p.lng, p.lat]);
+                layer.setLatLngs(newPoints.map(p => [p.lat, p.lng]));
+                // Recalculate distance
+                const line = turf.lineString(feature.geometry.coordinates);
+                props.distance = turf.length(line, { units: 'meters' });
+            }
+        } else {
+            // Old 2-point format
+            const startLat = parseFloat(div.querySelector('.start-lat-input').value);
+            const startLng = parseFloat(div.querySelector('.start-lng-input').value);
+            const endLat = parseFloat(div.querySelector('.end-lat-input').value);
+            const endLng = parseFloat(div.querySelector('.end-lng-input').value);
+            if (!isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
+                feature.geometry.coordinates = [[startLng, startLat], [endLng, endLat]];
+                layer.setLatLngs([[startLat, startLng], [endLat, endLng]]);
+                props.distance = state.map.distance([startLat, startLng], [endLat, endLng]);
+            }
+        }
+    } else if (type === 'bearing') {
         const startLat = parseFloat(div.querySelector('.start-lat-input').value);
         const startLng = parseFloat(div.querySelector('.start-lng-input').value);
         const endLat = parseFloat(div.querySelector('.end-lat-input').value);
@@ -2507,9 +2614,12 @@ function initContextMenu() {
             } else if (action === 'circle') {
                 state.drawing.center = { lat, lng };
                 openModal('modal-circle');
-            } else if (action === 'line' || action === 'bearing') {
+            } else if (action === 'line') {
+                state.drawing.points = [{ lat, lng }];
+                updateLineTempLayer();
+            } else if (action === 'bearing') {
                 state.drawing.startPoint = { lat, lng };
-                if (action === 'bearing') openModal('modal-bearing');
+                openModal('modal-bearing');
             } else if (action === 'polygon') {
                 state.drawing.points = [{ lat, lng }];
                 updateTempLayer();
@@ -2568,6 +2678,14 @@ function initTools() {
         if (e.key === 'Escape') {
             if (state.measurement.active) {
                 cancelMeasurement();
+            } else if (state.activeTool === 'line' && state.drawing.points && state.drawing.points.length > 0) {
+                // For line tool: cancel in-progress segment (finish line if 2+ points, else cancel drawing)
+                if (state.drawing.points.length >= 2) {
+                    finishLine();
+                } else {
+                    resetDrawingState();
+                    setActiveTool(null);
+                }
             } else if (state.activeTool) {
                 resetDrawingState();
                 setActiveTool(null);

@@ -12,7 +12,7 @@ Carte barbouillée, trésor trouvé !
 ### ✏️ Outils de dessin
 - **Marqueurs** : Points d'intérêt avec titre et description éditables
 - **Cercles** : Zones circulaires avec rayon paramétrable en mètres
-- **Lignes** : Tracés avec calcul automatique de distance
+- **Lignes** : Tracés multi-points avec calcul automatique de distance
 - **Lignes directionnelles** : Tracés avec azimut et distance
 - **Polygones** : Zones personnalisées
 
