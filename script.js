@@ -202,6 +202,9 @@ function initLayers() {
     // Parc de Chartreuse layer
     state.layers.parcChartreuse = null;
 
+    // Contour line layer
+    state.layers.contourLine = null;
+
     setupLayerControls();
 }
 
@@ -225,6 +228,13 @@ function setupLayerControls() {
     document.getElementById('ortho-opacity').addEventListener('input', (e) => {
         const val = e.target.value;
         document.getElementById('opacity-value').textContent = `${val}%`;
+        // Auto-check the overlay checkbox when changing opacity
+        const checkbox = document.getElementById('overlay-ortho');
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            state.layers.overlayOrtho.addTo(state.map);
+            document.getElementById('opacity-control').classList.remove('hidden');
+        }
         state.layers.overlayOrtho.setOpacity(val / 100);
     });
 
@@ -244,9 +254,17 @@ function setupLayerControls() {
     document.getElementById('buffer-radius').addEventListener('input', (e) => {
         const val = e.target.value;
         document.getElementById('buffer-radius-value').textContent = `${val}m`;
-        if (document.getElementById('overlay-buffers').checked && document.getElementById('overlay-buildings').checked) {
-            updateBuildings();
+        // Auto-check the overlay checkboxes when changing buffer radius
+        const buffersCheckbox = document.getElementById('overlay-buffers');
+        const buildingsCheckbox = document.getElementById('overlay-buildings');
+        if (!buffersCheckbox.checked) {
+            buffersCheckbox.checked = true;
+            document.getElementById('buffer-radius-control').classList.remove('hidden');
         }
+        if (!buildingsCheckbox.checked) {
+            buildingsCheckbox.checked = true;
+        }
+        updateBuildings();
     });
 
     document.getElementById('overlay-parc-chartreuse').addEventListener('change', async (e) => {
@@ -258,9 +276,41 @@ function setupLayerControls() {
             }
         }
     });
-}
 
-async function updateBuildings() {
+    // Contour line controls
+    document.getElementById('overlay-contour').addEventListener('change', async (e) => {
+        const controls = document.getElementById('contour-controls');
+        if (e.target.checked) {
+            controls.classList.remove('hidden');
+            await loadContourLine();
+        } else {
+            controls.classList.add('hidden');
+            if (state.layers.contourLine) {
+                state.map.removeLayer(state.layers.contourLine);
+            }
+        }
+    });
+
+    const contourAltitudeInput = document.getElementById('contour-altitude');
+
+    // Handle 'change' event (blur, enter, or spinner buttons) - round and update
+    contourAltitudeInput.addEventListener('change', async (e) => {
+        // Round to nearest multiple of 5
+        let val = parseInt(e.target.value);
+        if (isNaN(val)) return;
+        val = Math.round(val / 5) * 5;
+        val = Math.max(0, Math.min(5000, val)); // Clamp between 0 and 5000
+        e.target.value = val;
+
+        // Auto-check the overlay checkbox when changing altitude
+        const checkbox = document.getElementById('overlay-contour');
+        if (!checkbox.checked) {
+            checkbox.checked = true;
+            document.getElementById('contour-controls').classList.remove('hidden');
+        }
+        await loadContourLine();
+    });
+} async function updateBuildings() {
     if (!document.getElementById('overlay-buildings').checked) {
         document.getElementById('info-buildings').textContent = '0';
         return;
@@ -346,6 +396,69 @@ async function loadParcChartreuse() {
     } catch (error) {
         console.error('Error loading Parc de Chartreuse:', error);
         alert('Erreur lors du chargement du périmètre du Parc de Chartreuse');
+    }
+}
+
+async function loadContourLine() {
+    const altitude = parseInt(document.getElementById('contour-altitude').value);
+
+    if (isNaN(altitude) || altitude < 0 || altitude > 5000) {
+        alert('Veuillez entrer une altitude valide entre 0 et 5000 mètres');
+        return;
+    }
+
+    // Remove existing contour layer
+    if (state.layers.contourLine) {
+        state.map.removeLayer(state.layers.contourLine);
+    }
+
+    // Check zoom level - vector tiles only available at zoom >= 14
+    if (state.map.getZoom() < 14) {
+        alert('Les courbes de niveau ne sont disponibles qu\'à partir du niveau de zoom 14.\nVeuillez zoomer davantage.');
+        return;
+    }
+
+    // Use IGN vector tiles service (ISOHYPSE) - much faster than WFS
+    // Tiles available at: https://data.geopf.fr/tms/1.0.0/ISOHYPSE/{z}/{x}/{y}.pbf
+    const vectorTileUrl = 'https://data.geopf.fr/tms/1.0.0/ISOHYPSE/{z}/{x}/{y}.pbf';
+
+    try {
+        state.layers.contourLine = L.vectorGrid.protobuf(vectorTileUrl, {
+            vectorTileLayerStyles: {
+                // Layer name in the PBF is "courbe"
+                courbe: (properties) => {
+                    // Only show contour lines at the selected altitude
+                    if (properties.altitude === altitude) {
+                        return {
+                            color: '#e74c3c',
+                            weight: properties.importance === 'Principale' ? 5 : 3,
+                            opacity: 0.9
+                        };
+                    }
+                    // Hide other altitudes
+                    return { opacity: 0, weight: 0 };
+                }
+            },
+            interactive: true,
+            maxZoom: 19,
+            minZoom: 14,
+            getFeatureId: (feature) => feature.properties.altitude
+        });
+
+        state.layers.contourLine.on('click', (e) => {
+            if (e.layer.properties && e.layer.properties.altitude === altitude) {
+                L.popup()
+                    .setLatLng(e.latlng)
+                    .setContent(`<b>Courbe de niveau</b><br>Altitude: ${e.layer.properties.altitude}m`)
+                    .openOn(state.map);
+            }
+        });
+
+        state.layers.contourLine.addTo(state.map);
+        console.log(`Loaded contour line layer for altitude ${altitude}m using vector tiles`);
+    } catch (error) {
+        console.error('Error loading contour line:', error);
+        alert(`Erreur lors du chargement de la courbe de niveau: ${error.message}`);
     }
 }
 /**
@@ -2756,6 +2869,19 @@ function saveState() {
         return featureCopy;
     });
 
+    // Collect layer settings
+    const layerSettings = {
+        orthoEnabled: document.getElementById('overlay-ortho')?.checked || false,
+        orthoOpacity: parseInt(document.getElementById('ortho-opacity')?.value) || 50,
+        hillshadeEnabled: document.getElementById('overlay-hillshade')?.checked || false,
+        buildingsEnabled: document.getElementById('overlay-buildings')?.checked || false,
+        buffersEnabled: document.getElementById('overlay-buffers')?.checked || false,
+        bufferRadius: parseInt(document.getElementById('buffer-radius')?.value) || 50,
+        parcChartreuseEnabled: document.getElementById('overlay-parc-chartreuse')?.checked || false,
+        contourEnabled: document.getElementById('overlay-contour')?.checked || false,
+        contourAltitude: parseInt(document.getElementById('contour-altitude')?.value) || 1000
+    };
+
     const geoJSON = {
         type: 'FeatureCollection',
         features: featuresWithVisibility,
@@ -2763,8 +2889,9 @@ function saveState() {
             center: state.map.getCenter(),
             zoom: state.map.getZoom(),
             savedAt: new Date().toISOString(),
-            version: '4.0', // Version with folders and visibility support
-            folders: state.folders
+            version: '4.1', // Version with folders, visibility and layer settings support
+            folders: state.folders,
+            layerSettings: layerSettings
         }
     };
 
@@ -2789,6 +2916,11 @@ function restoreState() {
             state.folders = props.folders;
         }
 
+        // Restore layer settings
+        if (props.layerSettings) {
+            restoreLayerSettings(props.layerSettings);
+        }
+
         // Restore features directly
         data.features.forEach(feature => {
             const type = feature.properties.type;
@@ -2802,6 +2934,96 @@ function restoreState() {
     } catch (error) {
         console.error('Error restoring state:', error);
     }
+}
+
+/**
+ * Restore layer settings from saved state
+ */
+function restoreLayerSettings(settings) {
+    // Restore ortho layer
+    const orthoCheckbox = document.getElementById('overlay-ortho');
+    if (orthoCheckbox && settings.orthoEnabled !== undefined) {
+        orthoCheckbox.checked = settings.orthoEnabled;
+        if (settings.orthoEnabled) {
+            const opacityControl = document.getElementById('opacity-control');
+            if (opacityControl) opacityControl.classList.remove('hidden');
+        }
+    }
+
+    const orthoOpacity = document.getElementById('ortho-opacity');
+    const opacityValue = document.getElementById('opacity-value');
+    if (orthoOpacity && settings.orthoOpacity !== undefined) {
+        orthoOpacity.value = settings.orthoOpacity;
+        if (opacityValue) opacityValue.textContent = `${settings.orthoOpacity}%`;
+    }
+
+    // Restore hillshade layer
+    const hillshadeCheckbox = document.getElementById('overlay-hillshade');
+    if (hillshadeCheckbox && settings.hillshadeEnabled !== undefined) {
+        hillshadeCheckbox.checked = settings.hillshadeEnabled;
+    }
+
+    // Restore buildings layer
+    const buildingsCheckbox = document.getElementById('overlay-buildings');
+    if (buildingsCheckbox && settings.buildingsEnabled !== undefined) {
+        buildingsCheckbox.checked = settings.buildingsEnabled;
+    }
+
+    // Restore buffers layer
+    const buffersCheckbox = document.getElementById('overlay-buffers');
+    if (buffersCheckbox && settings.buffersEnabled !== undefined) {
+        buffersCheckbox.checked = settings.buffersEnabled;
+        if (settings.buffersEnabled) {
+            const bufferControl = document.getElementById('buffer-radius-control');
+            if (bufferControl) bufferControl.classList.remove('hidden');
+        }
+    }
+
+    const bufferRadius = document.getElementById('buffer-radius');
+    const bufferRadiusValue = document.getElementById('buffer-radius-value');
+    if (bufferRadius && settings.bufferRadius !== undefined) {
+        bufferRadius.value = settings.bufferRadius;
+        if (bufferRadiusValue) bufferRadiusValue.textContent = `${settings.bufferRadius}m`;
+    }
+
+    // Restore parc chartreuse layer
+    const parcChartreuseCheckbox = document.getElementById('overlay-parc-chartreuse');
+    if (parcChartreuseCheckbox && settings.parcChartreuseEnabled !== undefined) {
+        parcChartreuseCheckbox.checked = settings.parcChartreuseEnabled;
+    }
+
+    // Restore contour layer
+    const contourCheckbox = document.getElementById('overlay-contour');
+    if (contourCheckbox && settings.contourEnabled !== undefined) {
+        contourCheckbox.checked = settings.contourEnabled;
+    }
+
+    const contourAltitude = document.getElementById('contour-altitude');
+    if (contourAltitude && settings.contourAltitude !== undefined) {
+        contourAltitude.value = settings.contourAltitude;
+    }
+
+    // Trigger the layer updates after a short delay to ensure map is ready
+    setTimeout(() => {
+        if (settings.orthoEnabled) {
+            document.getElementById('overlay-ortho')?.dispatchEvent(new Event('change'));
+        }
+        if (settings.hillshadeEnabled) {
+            document.getElementById('overlay-hillshade')?.dispatchEvent(new Event('change'));
+        }
+        if (settings.buildingsEnabled) {
+            document.getElementById('overlay-buildings')?.dispatchEvent(new Event('change'));
+        }
+        if (settings.buffersEnabled) {
+            document.getElementById('overlay-buffers')?.dispatchEvent(new Event('change'));
+        }
+        if (settings.parcChartreuseEnabled) {
+            document.getElementById('overlay-parc-chartreuse')?.dispatchEvent(new Event('change'));
+        }
+        if (settings.contourEnabled) {
+            document.getElementById('overlay-contour')?.dispatchEvent(new Event('change'));
+        }
+    }, 500);
 }
 
 function initDataManagement() {
