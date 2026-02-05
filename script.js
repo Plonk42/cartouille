@@ -1464,6 +1464,10 @@ function updateElementList() {
 
     // Update element count
     document.getElementById('element-count').textContent = `(${allElements.length})`;
+
+    // Update the toggle all visibility button
+    const anyVisible = allElements.some(el => el.visible);
+    updateToggleAllButton(anyVisible);
 }
 
 function createFolder() {
@@ -1716,6 +1720,65 @@ function toggleFolderVisibility(folder) {
             }
         }
     });
+}
+
+/**
+ * Toggle visibility of all elements at once
+ * @param {boolean} [forceVisible] - If provided, force all elements to this visibility state
+ */
+function toggleAllElementsVisibility(forceVisible) {
+    // Determine target visibility: if forceVisible is provided use it, otherwise toggle based on current state
+    let targetVisibility;
+    if (forceVisible !== undefined) {
+        targetVisibility = forceVisible;
+    } else {
+        // Check if any element is currently visible
+        const anyVisible = state.features.some(feature => state.featureVisibility.get(feature.id) !== false);
+        targetVisibility = !anyVisible;
+    }
+
+    // Update all features
+    state.features.forEach(feature => {
+        state.featureVisibility.set(feature.id, targetVisibility);
+        const layer = state.featureLayers.get(feature.id);
+        if (layer) {
+            if (targetVisibility) {
+                layer.addTo(state.map);
+            } else {
+                state.map.removeLayer(layer);
+            }
+        }
+    });
+
+    // Update all folders visibility state
+    state.folders.forEach(folder => {
+        folder.visible = targetVisibility;
+    });
+
+    // Update the toggle button icon
+    updateToggleAllButton(targetVisibility);
+
+    updateElementList();
+    saveState();
+}
+
+/**
+ * Update the toggle all button icon based on visibility state
+ */
+function updateToggleAllButton(anyVisible) {
+    const btn = document.getElementById('btn-toggle-all-visibility');
+    if (btn) {
+        const icon = btn.querySelector('i');
+        if (anyVisible) {
+            icon.className = 'fas fa-eye';
+            btn.classList.remove('all-hidden');
+            btn.title = 'Tout cacher';
+        } else {
+            icon.className = 'fas fa-eye-slash';
+            btn.classList.add('all-hidden');
+            btn.title = 'Tout montrer';
+        }
+    }
 }
 
 // Drag and drop handlers
@@ -3027,6 +3090,11 @@ function restoreLayerSettings(settings) {
 }
 
 function initDataManagement() {
+    // Toggle all elements visibility button
+    document.getElementById('btn-toggle-all-visibility').addEventListener('click', () => {
+        toggleAllElementsVisibility();
+    });
+
     document.getElementById('btn-export').addEventListener('click', () => {
         const saved = localStorage.getItem('ignMapData');
         if (!saved) return;
