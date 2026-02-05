@@ -3,9 +3,15 @@
  * @module ui
  */
 
-import { CONFIG, setApiKey } from './config.js';
+import { CONFIG, DEBOUNCE_DELAY, setApiKey } from './config.js';
 import { createElement } from './elements.js';
 import { state } from './state.js';
+
+/** @constant {number} Default zoom level for search results */
+const SEARCH_RESULT_ZOOM = 14;
+
+/** @constant {number} Copy feedback duration in ms */
+const COPY_FEEDBACK_DURATION = 1500;
 
 /**
  * Initialize search functionality
@@ -27,10 +33,10 @@ async function performSearch() {
     // Check if it's coordinates
     const coordMatch = query.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
     if (coordMatch) {
-        const lat = parseFloat(coordMatch[1]);
-        const lng = parseFloat(coordMatch[2]);
-        if (!isNaN(lat) && !isNaN(lng)) {
-            state.map.setView([lat, lng], 14);
+        const lat = Number.parseFloat(coordMatch[1]);
+        const lng = Number.parseFloat(coordMatch[2]);
+        if (Number.isFinite(lat) && Number.isFinite(lng)) {
+            state.map.setView([lat, lng], SEARCH_RESULT_ZOOM);
             return;
         }
     }
@@ -42,7 +48,7 @@ async function performSearch() {
         );
         const data = await response.json();
         if (data?.length > 0) {
-            state.map.setView([data[0].lat, data[0].lon], 14);
+            state.map.setView([data[0].lat, data[0].lon], SEARCH_RESULT_ZOOM);
         } else {
             alert('Lieu non trouvé');
         }
@@ -123,7 +129,7 @@ export function initCoordinateConverter() {
     // Auto-convert on input with debounce
     dmsInput?.addEventListener('input', () => {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(doConvert, 300);
+        debounceTimer = setTimeout(doConvert, DEBOUNCE_DELAY);
     });
 
     dmsInput?.addEventListener('keypress', (e) => {
@@ -141,14 +147,14 @@ export function initCoordinateConverter() {
                 btnCopy.innerHTML = '<i class="fas fa-check"></i>';
                 setTimeout(() => {
                     btnCopy.innerHTML = originalIcon;
-                }, 1500);
+                }, COPY_FEEDBACK_DURATION);
             });
         }
     });
 
     btnGoto?.addEventListener('click', () => {
         if (lastConvertedLat !== null && lastConvertedLng !== null) {
-            state.map.setView([lastConvertedLat, lastConvertedLng], 14);
+            state.map.setView([lastConvertedLat, lastConvertedLng], SEARCH_RESULT_ZOOM);
         }
     });
 
@@ -164,52 +170,50 @@ export function initCoordinateConverter() {
 }
 
 /**
+ * Parse a single DMS coordinate match
+ * @param {Array} match - Regex match array
+ * @returns {Object} Parsed coordinate with decimal and isLatitude
+ */
+function parseDMSCoord(match) {
+    const deg = Number.parseFloat(match[1].replace(',', '.')) || 0;
+    const min = Number.parseFloat((match[2] || '0').replace(',', '.')) || 0;
+    const sec = Number.parseFloat((match[3] || '0').replace(',', '.')) || 0;
+    const dir = match[4].toLowerCase();
+
+    let decimal = deg + (min / 60) + (sec / 3600);
+    if (dir.startsWith('s') || dir.startsWith('o') || dir.startsWith('w')) {
+        decimal = -decimal;
+    }
+
+    return { decimal, isLatitude: dir.startsWith('n') || dir.startsWith('s') };
+}
+
+/**
  * Parse DMS string to decimal coordinates
  * @param {string} input - DMS string like "39° 50′ 27″ nord, 0° 30′ 26″ ouest"
  * @returns {Object|null} {lat, lng} or null if parsing fails
  */
 function parseDMSString(input) {
-    let normalized = input
+    const normalized = input
         .toLowerCase()
-        .replace(/[,;]/g, ' ')
-        .replace(/['\u2019]/g, '\u2032')
-        .replace(/["\u201d]/g, '\u2033')
-        .replace(/\s+/g, ' ')
+        .replaceAll(/[,;]/g, ' ')
+        .replaceAll(/['\u2019]/g, '\u2032')
+        .replaceAll(/["\u201d]/g, '\u2033')
+        .replaceAll(/\s+/g, ' ')
         .trim();
 
-    const dmsPattern = /(\d+(?:[.,]\d+)?)[\s°d]*(\d+(?:[.,]\d+)?)?[\s′'m]*(\d+(?:[.,]\d+)?)?[\s″"s]*\s*(nord?|sud?|est?|west|ouest?|[nseoNSEOW])/gi;
+    // Simplified DMS pattern
+    const dmsPattern = /(\d+(?:[.,]\d+)?)[\s°]*?(\d+(?:[.,]\d+)?)?[\s′']*?(\d+(?:[.,]\d+)?)?[\s″"]*?\s*(nord?|sud?|est?|west|ouest?|[nsew])/gi;
     const matches = [...normalized.matchAll(dmsPattern)];
 
     if (matches.length < 2) return null;
 
-    function parseCoord(match) {
-        const deg = parseFloat(match[1].replace(',', '.')) || 0;
-        const min = parseFloat((match[2] || '0').replace(',', '.')) || 0;
-        const sec = parseFloat((match[3] || '0').replace(',', '.')) || 0;
-        const dir = match[4].toLowerCase();
+    const coord1 = parseDMSCoord(matches[0]);
+    const coord2 = parseDMSCoord(matches[1]);
 
-        let decimal = deg + (min / 60) + (sec / 3600);
-        if (dir.startsWith('s') || dir.startsWith('o') || dir.startsWith('w')) {
-            decimal = -decimal;
-        }
-
-        return { decimal, isLatitude: dir.startsWith('n') || dir.startsWith('s') };
-    }
-
-    const coord1 = parseCoord(matches[0]);
-    const coord2 = parseCoord(matches[1]);
-
-    let lat, lng;
-    if (coord1.isLatitude && !coord2.isLatitude) {
-        lat = coord1.decimal;
-        lng = coord2.decimal;
-    } else if (!coord1.isLatitude && coord2.isLatitude) {
-        lat = coord2.decimal;
-        lng = coord1.decimal;
-    } else {
-        lat = coord1.decimal;
-        lng = coord2.decimal;
-    }
+    // Determine lat/lng based on direction
+    const lat = coord1.isLatitude ? coord1.decimal : coord2.decimal;
+    const lng = coord1.isLatitude ? coord2.decimal : coord1.decimal;
 
     return { lat, lng };
 }

@@ -3,12 +3,39 @@
  * @module config
  */
 
+/** @constant {number} Default zoom level for map */
+export const DEFAULT_ZOOM = 6;
+
+/** @constant {number} Maximum zoom level */
+export const MAX_ZOOM = 22;
+
+/** @constant {number} Minimum zoom for building layer */
+export const MIN_ZOOM_BUILDINGS = 16;
+
+/** @constant {number} Minimum zoom for contour lines */
+export const MIN_ZOOM_CONTOUR = 14;
+
+/** @constant {number} Maximum buildings count for dissolve operation */
+export const MAX_BUILDINGS_FOR_DISSOLVE = 512;
+
+/** @constant {Array<number>} Default map center (France) */
+export const DEFAULT_CENTER = [46.603354, 1.888334];
+
+/** @constant {number} Debounce delay in milliseconds */
+export const DEBOUNCE_DELAY = 300;
+
+/** @constant {number} Popup close delay in milliseconds */
+export const POPUP_DELAY = 100;
+
+/** @constant {number} Layer restore delay in milliseconds */
+export const LAYER_RESTORE_DELAY = 500;
+
 export const CONFIG = {
     ignApiKey: localStorage.getItem('ignApiKey') || 'xxx_xxx_xxx',
-    defaultCenter: [46.603354, 1.888334],
-    defaultZoom: 6,
-    maxZoom: 22,
-    maxBuildingsForDissolve: 512,
+    defaultCenter: DEFAULT_CENTER,
+    defaultZoom: DEFAULT_ZOOM,
+    maxZoom: MAX_ZOOM,
+    maxBuildingsForDissolve: MAX_BUILDINGS_FOR_DISSOLVE,
 
     colors: {
         default: '#3388ff',

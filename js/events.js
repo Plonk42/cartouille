@@ -17,6 +17,27 @@ import { completeMeasurement, handleMeasurementClick } from './measurements.js';
 import { state } from './state.js';
 import { openModal } from './utils.js';
 
+/** @constant {Object} Measurement preview line style */
+const MEASUREMENT_PREVIEW_STYLE = {
+    color: '#16a085',
+    dashArray: '5, 10',
+    weight: 2,
+    fillOpacity: 0.1,
+    interactive: false
+};
+
+/** @constant {Object} Drawing preview line style */
+const DRAWING_PREVIEW_STYLE = {
+    color: 'red',
+    dashArray: '5, 10',
+    weight: 2,
+    fillOpacity: 0.1,
+    interactive: false
+};
+
+/** @constant {Set<string>} Measurement types that use polygon */
+const POLYGON_MEASUREMENTS = new Set(['area', 'center', 'centroid', 'bbox']);
+
 /**
  * Handle mouse move events on the map
  * @param {L.MouseEvent} e - Leaflet mouse event
@@ -53,30 +74,20 @@ export function handleMouseMove(e) {
  */
 function renderMeasurementPreview(latlng) {
     const { lat, lng } = latlng;
-    const lastPoint = state.measurement.points[state.measurement.points.length - 1];
+    const lastPoint = state.measurement.points.at(-1);
 
     if (state.drawing.cursorLayer) {
         state.map.removeLayer(state.drawing.cursorLayer);
     }
 
-    const polygonMeasurements = ['area', 'center', 'centroid', 'bbox'];
-
-    if (polygonMeasurements.includes(state.measurement.active) && state.measurement.points.length >= 1) {
+    if (POLYGON_MEASUREMENTS.has(state.measurement.active) && state.measurement.points.length >= 1) {
         const previewPoints = [...state.measurement.points.map(p => [p.lat, p.lng]), [lat, lng]];
-        state.drawing.cursorLayer = L.polygon(previewPoints, {
-            color: '#16a085',
-            dashArray: '5, 10',
-            weight: 2,
-            fillOpacity: 0.1,
-            interactive: false
-        }).addTo(state.map);
+        state.drawing.cursorLayer = L.polygon(previewPoints, MEASUREMENT_PREVIEW_STYLE).addTo(state.map);
     } else {
-        state.drawing.cursorLayer = L.polyline([[lastPoint.lat, lastPoint.lng], [lat, lng]], {
-            color: '#16a085',
-            dashArray: '5, 10',
-            weight: 2,
-            interactive: false
-        }).addTo(state.map);
+        state.drawing.cursorLayer = L.polyline(
+            [[lastPoint.lat, lastPoint.lng], [lat, lng]],
+            MEASUREMENT_PREVIEW_STYLE
+        ).addTo(state.map);
     }
 }
 
@@ -87,14 +98,7 @@ function renderMeasurementPreview(latlng) {
 function renderPolygonPreview(latlng) {
     const { lat, lng } = latlng;
     const previewPoints = [...state.drawing.points.map(p => [p.lat, p.lng]), [lat, lng]];
-
-    state.drawing.cursorLayer = L.polygon(previewPoints, {
-        color: 'red',
-        dashArray: '5, 10',
-        weight: 2,
-        fillOpacity: 0.1,
-        interactive: false
-    }).addTo(state.map);
+    state.drawing.cursorLayer = L.polygon(previewPoints, DRAWING_PREVIEW_STYLE).addTo(state.map);
 }
 
 /**
@@ -103,14 +107,11 @@ function renderPolygonPreview(latlng) {
  */
 function renderLinePreview(latlng) {
     const { lat, lng } = latlng;
-    const lastPoint = state.drawing.points[state.drawing.points.length - 1];
-
-    state.drawing.cursorLayer = L.polyline([[lastPoint.lat, lastPoint.lng], [lat, lng]], {
-        color: 'red',
-        dashArray: '5, 10',
-        weight: 2,
-        interactive: false
-    }).addTo(state.map);
+    const lastPoint = state.drawing.points.at(-1);
+    state.drawing.cursorLayer = L.polyline(
+        [[lastPoint.lat, lastPoint.lng], [lat, lng]],
+        DRAWING_PREVIEW_STYLE
+    ).addTo(state.map);
 }
 
 /**
@@ -118,12 +119,10 @@ function renderLinePreview(latlng) {
  * @param {L.LatLng} latlng - Current mouse position
  */
 function renderBearingPreview(latlng) {
-    state.drawing.cursorLayer = L.polyline([state.drawing.startPoint, latlng], {
-        color: 'red',
-        dashArray: '5, 10',
-        weight: 2,
-        interactive: false
-    }).addTo(state.map);
+    state.drawing.cursorLayer = L.polyline(
+        [state.drawing.startPoint, latlng],
+        DRAWING_PREVIEW_STYLE
+    ).addTo(state.map);
 }
 
 /**
@@ -169,8 +168,7 @@ export function handleMapClick(e) {
  */
 export function handleMapDoubleClick(e) {
     // Handle polygon-based measurement double-click
-    const polygonMeasurements = ['area', 'center', 'centroid', 'bbox'];
-    if (polygonMeasurements.includes(state.measurement.active) && state.measurement.points.length >= 3) {
+    if (POLYGON_MEASUREMENTS.has(state.measurement.active) && state.measurement.points.length >= 3) {
         L.DomEvent.stopPropagation(e);
         completeMeasurement();
         return;
@@ -184,21 +182,16 @@ export function handleMapDoubleClick(e) {
     }
 
     // Handle line drawing double-click
-    if (state.activeTool === 'line') {
+    if (state.activeTool === 'line' && state.drawing.points?.length >= 2) {
         L.DomEvent.stopPropagation(e);
-        if (state.drawing.points?.length >= 2) {
-            finishLine();
-        }
+        finishLine();
         return;
     }
 
     // Handle polygon drawing double-click
-    if (state.activeTool === 'polygon') {
+    if (state.activeTool === 'polygon' && state.drawing.points?.length >= 3) {
         L.DomEvent.stopPropagation(e);
-        if (state.drawing.points?.length >= 3) {
-            finishPolygon();
-        }
-        return;
+        finishPolygon();
     }
 }
 

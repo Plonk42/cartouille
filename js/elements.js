@@ -97,11 +97,12 @@ export function createElement(type, data) {
                 [data.end.lng, data.end.lat]
             ], properties);
             break;
-        case 'polygon':
+        case 'polygon': {
             const polyCoords = data.points.map(p => [p.lng, p.lat]);
             polyCoords.push(polyCoords[0]);
             feature = turf.polygon([polyCoords], properties);
             break;
+        }
     }
 
     feature.id = id;
@@ -135,7 +136,6 @@ export function createPopupContent(feature) {
     const props = feature.properties;
     const type = props.type;
     const id = feature.id;
-    const geom = feature.geometry;
 
     let fieldsHtml = createPopupField('Titre', 'text', props.title, 'title-input');
     fieldsHtml += createPopupField('Couleur', 'color', props.color || CONFIG.colors.default, 'color-input');
@@ -340,8 +340,8 @@ function createMeasurementFields(feature) {
                 </div>`;
         }
 
-        const alongPercent = props.alongPercent !== undefined ? props.alongPercent : 50;
-        const alongDistance = props.alongDistance !== undefined ? props.alongDistance : (props.lengthM / 2);
+        const alongPercent = props.alongPercent ?? 50;
+        const alongDistance = props.alongDistance ?? (props.lengthM / 2);
 
         html += `
             <div class="popup-field">
@@ -379,8 +379,8 @@ function setupAlongInputs(div, feature) {
     const lengthM = props.lengthM;
 
     percentInput.addEventListener('input', (e) => {
-        const percent = parseFloat(e.target.value);
-        if (!isNaN(percent) && lengthM) {
+        const percent = Number.parseFloat(e.target.value);
+        if (Number.isFinite(percent) && lengthM) {
             const distance = (percent / 100) * lengthM;
             distanceInput.value = distance.toFixed(2);
             updateAlongPoint(feature, distance, pointDisplay);
@@ -388,8 +388,8 @@ function setupAlongInputs(div, feature) {
     });
 
     distanceInput.addEventListener('input', (e) => {
-        const distance = parseFloat(e.target.value);
-        if (!isNaN(distance) && lengthM) {
+        const distance = Number.parseFloat(e.target.value);
+        if (Number.isFinite(distance) && lengthM) {
             const percent = (distance / lengthM) * 100;
             percentInput.value = percent.toFixed(1);
             updateAlongPoint(feature, distance, pointDisplay);
@@ -466,6 +466,17 @@ function updateLayerColor(layer, type, color) {
 }
 
 /**
+ * Parse coordinate value from input element
+ * @param {Element} container - Parent container
+ * @param {string} selector - CSS selector
+ * @returns {number|null} Parsed value or null
+ */
+function parseInputValue(container, selector) {
+    const value = Number.parseFloat(container.querySelector(selector)?.value);
+    return Number.isFinite(value) ? value : null;
+}
+
+/**
  * Update type-specific properties from popup
  */
 function updateTypeSpecificFromPopup(feature, div, layer) {
@@ -473,21 +484,21 @@ function updateTypeSpecificFromPopup(feature, div, layer) {
     const type = props.type;
 
     if (type === 'marker') {
-        const lat = parseFloat(div.querySelector('.lat-input')?.value);
-        const lng = parseFloat(div.querySelector('.lng-input')?.value);
-        if (!isNaN(lat) && !isNaN(lng)) {
+        const lat = parseInputValue(div, '.lat-input');
+        const lng = parseInputValue(div, '.lng-input');
+        if (lat !== null && lng !== null) {
             feature.geometry.coordinates = [lng, lat];
             layer.setLatLng([lat, lng]);
         }
     } else if (type === 'circle') {
-        const lat = parseFloat(div.querySelector('.lat-input')?.value);
-        const lng = parseFloat(div.querySelector('.lng-input')?.value);
-        const radius = parseFloat(div.querySelector('.radius-input')?.value);
-        if (!isNaN(lat) && !isNaN(lng)) {
+        const lat = parseInputValue(div, '.lat-input');
+        const lng = parseInputValue(div, '.lng-input');
+        const radius = parseInputValue(div, '.radius-input');
+        if (lat !== null && lng !== null) {
             feature.geometry.coordinates = [lng, lat];
             layer.setLatLng([lat, lng]);
         }
-        if (!isNaN(radius)) {
+        if (radius !== null) {
             props.radius = radius;
             layer.setRadius(radius);
         }
@@ -523,11 +534,11 @@ function updateLineFromPopup(feature, div, layer) {
             props.distance = turf.length(line, { units: 'meters' });
         }
     } else {
-        const startLat = parseFloat(div.querySelector('.start-lat-input')?.value);
-        const startLng = parseFloat(div.querySelector('.start-lng-input')?.value);
-        const endLat = parseFloat(div.querySelector('.end-lat-input')?.value);
-        const endLng = parseFloat(div.querySelector('.end-lng-input')?.value);
-        if (!isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
+        const startLat = parseInputValue(div, '.start-lat-input');
+        const startLng = parseInputValue(div, '.start-lng-input');
+        const endLat = parseInputValue(div, '.end-lat-input');
+        const endLng = parseInputValue(div, '.end-lng-input');
+        if (startLat !== null && startLng !== null && endLat !== null && endLng !== null) {
             feature.geometry.coordinates = [[startLng, startLat], [endLng, endLat]];
             layer.setLatLngs([[startLat, startLng], [endLat, endLng]]);
             props.distance = state.map.distance([startLat, startLng], [endLat, endLng]);
@@ -540,12 +551,12 @@ function updateLineFromPopup(feature, div, layer) {
  */
 function updateBearingFromPopup(feature, div, layer) {
     const props = feature.properties;
-    const startLat = parseFloat(div.querySelector('.start-lat-input')?.value);
-    const startLng = parseFloat(div.querySelector('.start-lng-input')?.value);
-    const endLat = parseFloat(div.querySelector('.end-lat-input')?.value);
-    const endLng = parseFloat(div.querySelector('.end-lng-input')?.value);
+    const startLat = parseInputValue(div, '.start-lat-input');
+    const startLng = parseInputValue(div, '.start-lng-input');
+    const endLat = parseInputValue(div, '.end-lat-input');
+    const endLng = parseInputValue(div, '.end-lng-input');
 
-    if (!isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
+    if (startLat !== null && startLng !== null && endLat !== null && endLng !== null) {
         feature.geometry.coordinates = [[startLng, startLat], [endLng, endLat]];
         layer.setLatLngs([[startLat, startLng], [endLat, endLng]]);
         props.distance = state.map.distance([startLat, startLng], [endLat, endLng]);
@@ -560,12 +571,12 @@ function updateMeasurementFromPopup(feature, div, layer) {
     const type = props.type;
 
     if (type === 'measurement-distance' || type === 'measurement-bearing') {
-        const startLat = parseFloat(div.querySelector('.start-lat-input')?.value);
-        const startLng = parseFloat(div.querySelector('.start-lng-input')?.value);
-        const endLat = parseFloat(div.querySelector('.end-lat-input')?.value);
-        const endLng = parseFloat(div.querySelector('.end-lng-input')?.value);
+        const startLat = parseInputValue(div, '.start-lat-input');
+        const startLng = parseInputValue(div, '.start-lng-input');
+        const endLat = parseInputValue(div, '.end-lat-input');
+        const endLng = parseInputValue(div, '.end-lng-input');
 
-        if (!isNaN(startLat) && !isNaN(startLng) && !isNaN(endLat) && !isNaN(endLng)) {
+        if (startLat !== null && startLng !== null && endLat !== null && endLng !== null) {
             if (feature.geometry.type === 'GeometryCollection') {
                 feature.geometry.geometries[0].coordinates = [[startLng, startLat], [endLng, endLat]];
             } else {
@@ -690,13 +701,7 @@ export function toggleElementVisibility(id) {
  * @param {boolean} [forceVisible] - Force visibility state
  */
 export function toggleAllElementsVisibility(forceVisible) {
-    let targetVisibility;
-    if (forceVisible !== undefined) {
-        targetVisibility = forceVisible;
-    } else {
-        const anyVisible = state.features.some(f => state.featureVisibility.get(f.id) !== false);
-        targetVisibility = !anyVisible;
-    }
+    const targetVisibility = forceVisible ?? !state.features.some(f => state.featureVisibility.get(f.id) !== false);
 
     state.features.forEach(feature => {
         state.featureVisibility.set(feature.id, targetVisibility);
@@ -759,4 +764,4 @@ export function deleteElement(id) {
 }
 
 // Expose for HTML access
-window.deleteElement = deleteElement;
+globalThis.deleteElement = deleteElement;

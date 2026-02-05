@@ -104,10 +104,11 @@ export function elementToGeoJSON(element) {
             ], properties);
             break;
 
-        case 'polygon':
+        case 'polygon': {
             const coords = data.points.map(p => [p.lng, p.lat]);
             feature = turf.polygon([coords], properties);
             break;
+        }
 
         case 'measurement-distance':
         case 'measurement-bearing':
@@ -123,7 +124,7 @@ export function elementToGeoJSON(element) {
             ], properties);
             break;
 
-        case 'measurement-area':
+        case 'measurement-area': {
             properties.areaM2 = data.areaM2;
             properties.areaHa = data.areaHa;
             properties.areaKm2 = data.areaKm2;
@@ -133,9 +134,10 @@ export function elementToGeoJSON(element) {
             areaCoords.push(areaCoords[0]);
             feature = turf.polygon([areaCoords], properties);
             break;
+        }
 
         case 'measurement-center':
-        case 'measurement-centroid':
+        case 'measurement-centroid': {
             const centerPoint = type === 'measurement-center' ? data.center : data.centroid;
             properties[type === 'measurement-center' ? 'center' : 'centroid'] = centerPoint;
             if (data.areaM2) properties.areaM2 = data.areaM2;
@@ -155,8 +157,9 @@ export function elementToGeoJSON(element) {
                 properties: properties
             };
             break;
+        }
 
-        case 'measurement-bbox':
+        case 'measurement-bbox': {
             properties.bbox = data.bbox;
             properties.width = data.width;
             properties.height = data.height;
@@ -178,8 +181,9 @@ export function elementToGeoJSON(element) {
                 properties: properties
             };
             break;
+        }
 
-        case 'measurement-along':
+        case 'measurement-along': {
             properties.lengthM = data.lengthM;
             properties.lengthKm = data.lengthKm;
             properties.alongDistance = data.alongDistance;
@@ -197,6 +201,7 @@ export function elementToGeoJSON(element) {
                 properties: properties
             };
             break;
+        }
     }
 
     if (feature) {
@@ -284,7 +289,7 @@ export function geoJSONToElement(feature) {
             break;
 
         case 'measurement-center':
-        case 'measurement-centroid':
+        case 'measurement-centroid': {
             data.points = geom.geometries[0].coordinates[0].slice(0, -1).map(coord => ({
                 lat: coord[1], lng: coord[0]
             }));
@@ -296,6 +301,7 @@ export function geoJSONToElement(feature) {
             if (props.areaM2) data.areaM2 = props.areaM2;
             if (props.areaHa) data.areaHa = props.areaHa;
             break;
+        }
 
         case 'measurement-bbox':
             data.points = geom.geometries[0].coordinates[0].slice(0, -1).map(coord => ({

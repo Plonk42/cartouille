@@ -16,7 +16,7 @@ export function saveState() {
 
     // Create features with visibility state
     const featuresWithVisibility = state.features.map(f => {
-        const featureCopy = JSON.parse(JSON.stringify(f));
+        const featureCopy = structuredClone(f);
         featureCopy.properties._visible = state.featureVisibility.get(f.id) !== false;
         return featureCopy;
     });
@@ -24,13 +24,13 @@ export function saveState() {
     // Collect layer settings
     const layerSettings = {
         orthoEnabled: document.getElementById('overlay-ortho')?.checked || false,
-        orthoOpacity: parseInt(document.getElementById('ortho-opacity')?.value) || 50,
+        orthoOpacity: Number.parseInt(document.getElementById('ortho-opacity')?.value, 10) || 50,
         buildingsEnabled: document.getElementById('overlay-buildings')?.checked || false,
         buffersEnabled: document.getElementById('overlay-buffers')?.checked || false,
-        bufferRadius: parseInt(document.getElementById('buffer-radius')?.value) || 50,
+        bufferRadius: Number.parseInt(document.getElementById('buffer-radius')?.value, 10) || 50,
         parcChartreuseEnabled: document.getElementById('overlay-parc-chartreuse')?.checked || false,
         contourEnabled: document.getElementById('overlay-contour')?.checked || false,
-        contourAltitude: parseInt(document.getElementById('contour-altitude')?.value) || 1000
+        contourAltitude: Number.parseInt(document.getElementById('contour-altitude')?.value, 10) || 1000
     };
 
     const geoJSON = {
@@ -129,50 +129,47 @@ function exportData() {
  * Handle file import
  * @param {Event} e - File input change event
  */
-function handleImport(e) {
+async function handleImport(e) {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
-        try {
-            const data = JSON.parse(event.target.result);
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
 
-            // Clear existing features
-            state.featureLayers.forEach(layer => state.map.removeLayer(layer));
-            state.features = [];
-            state.featureLayers.clear();
-            state.featureVisibility.clear();
-            state.folders = [];
+        // Clear existing features
+        state.featureLayers.forEach(layer => state.map.removeLayer(layer));
+        state.features = [];
+        state.featureLayers.clear();
+        state.featureVisibility.clear();
+        state.folders = [];
 
-            // Restore map view
-            const props = data.properties || {};
-            if (props.center && props.zoom) {
-                state.map.setView(props.center, props.zoom);
-            }
-
-            // Restore folders
-            if (props.folders) {
-                state.folders = props.folders;
-            }
-
-            // Import features
-            data.features.forEach(feature => {
-                const type = feature.properties.type;
-                const visible = feature.properties._visible !== false;
-                if (type.startsWith('measurement-')) {
-                    restoreMeasurementFeature(feature, visible);
-                } else {
-                    restoreFeature(feature, visible);
-                }
-            });
-
-            saveState();
-            alert('Import réussi !');
-        } catch (error) {
-            console.error('Import error:', error);
-            alert('Erreur lors de l\'import: ' + error.message);
+        // Restore map view
+        const props = data.properties || {};
+        if (props.center && props.zoom) {
+            state.map.setView(props.center, props.zoom);
         }
-    };
-    reader.readAsText(file);
+
+        // Restore folders
+        if (props.folders) {
+            state.folders = props.folders;
+        }
+
+        // Import features
+        data.features.forEach(feature => {
+            const type = feature.properties.type;
+            const visible = feature.properties._visible !== false;
+            if (type.startsWith('measurement-')) {
+                restoreMeasurementFeature(feature, visible);
+            } else {
+                restoreFeature(feature, visible);
+            }
+        });
+
+        saveState();
+        alert('Import réussi !');
+    } catch (error) {
+        console.error('Import error:', error);
+        alert('Erreur lors de l\'import: ' + error.message);
+    }
 }

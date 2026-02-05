@@ -120,7 +120,7 @@ export function closeModal(id) {
  * @returns {string} Unique identifier
  */
 export function generateId() {
-    return Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 11);
 }
 
 /**
@@ -129,18 +129,15 @@ export function generateId() {
  * @returns {Array} Array of point objects with lat/lng
  */
 export function parsePointsFromText(text) {
-    const points = [];
-    text.split('\n').forEach(line => {
-        const parts = line.split(',');
-        if (parts.length >= 2) {
-            const lat = parseFloat(parts[0].trim());
-            const lng = parseFloat(parts[1].trim());
-            if (!isNaN(lat) && !isNaN(lng)) {
-                points.push({ lat, lng });
-            }
-        }
-    });
-    return points;
+    return text.split('\n')
+        .map(line => {
+            const parts = line.split(',');
+            if (parts.length < 2) return null;
+            const lat = Number.parseFloat(parts[0].trim());
+            const lng = Number.parseFloat(parts[1].trim());
+            return Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null;
+        })
+        .filter(Boolean);
 }
 
 /**

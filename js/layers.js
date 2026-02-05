@@ -3,7 +3,12 @@
  * @module layers
  */
 
-import { CONFIG } from './config.js';
+import {
+    CONFIG,
+    LAYER_RESTORE_DELAY,
+    MIN_ZOOM_BUILDINGS,
+    MIN_ZOOM_CONTOUR
+} from './config.js';
 import { state } from './state.js';
 
 /**
@@ -163,8 +168,8 @@ function setupLayerControls() {
 
     // Contour altitude
     document.getElementById('contour-altitude')?.addEventListener('change', async (e) => {
-        let val = parseInt(e.target.value);
-        if (isNaN(val)) return;
+        let val = Number.parseInt(e.target.value, 10);
+        if (Number.isNaN(val)) return;
 
         // Round to nearest multiple of 5
         val = Math.round(val / 5) * 5;
@@ -190,8 +195,8 @@ export async function updateBuildings() {
         return;
     }
 
-    if (state.map.getZoom() < 16) {
-        document.getElementById('info-buildings').textContent = '0 (Zoom < 16)';
+    if (state.map.getZoom() < MIN_ZOOM_BUILDINGS) {
+        document.getElementById('info-buildings').textContent = `0 (Zoom < ${MIN_ZOOM_BUILDINGS})`;
         if (state.buildingsLayer) state.map.removeLayer(state.buildingsLayer);
         if (state.buffersLayer) state.map.removeLayer(state.buffersLayer);
         return;
@@ -238,7 +243,7 @@ function renderBuffers(data) {
     }
 
     try {
-        const bufferRadius = parseInt(document.getElementById('buffer-radius')?.value || 50) / 1000;
+        const bufferRadius = Number.parseInt(document.getElementById('buffer-radius')?.value || '50', 10) / 1000;
         const bufferedCollection = turf.buffer(data, bufferRadius, { units: 'kilometers' });
 
         const finalGeoJSON = data.features.length <= CONFIG.maxBuildingsForDissolve
@@ -266,7 +271,7 @@ function renderBuffers(data) {
 async function loadParcChartreuse() {
     try {
         if (typeof PARC_CHARTREUSE_DATA === 'undefined') {
-            throw new Error('Parc Chartreuse data not loaded');
+            throw new TypeError('Parc Chartreuse data not loaded');
         }
 
         if (state.layers.parcChartreuse) {
@@ -297,9 +302,9 @@ async function loadParcChartreuse() {
  * Load contour line at specified altitude
  */
 async function loadContourLine() {
-    const altitude = parseInt(document.getElementById('contour-altitude')?.value);
+    const altitude = Number.parseInt(document.getElementById('contour-altitude')?.value, 10);
 
-    if (isNaN(altitude) || altitude < 0 || altitude > 5000) {
+    if (Number.isNaN(altitude) || altitude < 0 || altitude > 5000) {
         alert('Veuillez entrer une altitude valide entre 0 et 5000 mètres');
         return;
     }
@@ -308,8 +313,8 @@ async function loadContourLine() {
         state.map.removeLayer(state.layers.contourLine);
     }
 
-    if (state.map.getZoom() < 14) {
-        alert('Les courbes de niveau ne sont disponibles qu\'à partir du niveau de zoom 14.\nVeuillez zoomer davantage.');
+    if (state.map.getZoom() < MIN_ZOOM_CONTOUR) {
+        alert(`Les courbes de niveau ne sont disponibles qu'à partir du niveau de zoom ${MIN_ZOOM_CONTOUR}.\nVeuillez zoomer davantage.`);
         return;
     }
 
@@ -331,7 +336,7 @@ async function loadContourLine() {
             },
             interactive: true,
             maxZoom: 19,
-            minZoom: 14,
+            minZoom: MIN_ZOOM_CONTOUR,
             getFeatureId: (feature) => feature.properties.altitude
         });
 
@@ -428,5 +433,5 @@ export function restoreLayerSettings(settings) {
         if (settings.contourEnabled) {
             document.getElementById('overlay-contour')?.dispatchEvent(new Event('change'));
         }
-    }, 500);
+    }, LAYER_RESTORE_DELAY);
 }

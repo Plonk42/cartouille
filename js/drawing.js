@@ -58,10 +58,41 @@ export function handleLineClick(lat, lng) {
     clearCursorLayer();
 }
 
+/** @constant {Object} Temp layer marker styles */
+const TEMP_MARKER_STYLE = {
+    color: 'red',
+    fillColor: 'red',
+    fillOpacity: 1,
+    interactive: false
+};
+
+/** @constant {Object} Temp layer line styles */
+const TEMP_LINE_STYLE = {
+    color: 'red',
+    weight: 2,
+    interactive: false
+};
+
 /**
- * Update temporary layer for line drawing
+ * Create vertex markers for temp layer
+ * @param {Array<{lat: number, lng: number}>} points - Points to mark
+ * @param {L.LayerGroup} layerGroup - Layer group to add markers to
  */
-export function updateLineTempLayer() {
+function createVertexMarkers(points, layerGroup) {
+    points.forEach((p, i) => {
+        L.circleMarker([p.lat, p.lng], {
+            ...TEMP_MARKER_STYLE,
+            radius: i === 0 ? 8 : 5,
+            fillColor: i === 0 ? '#ff6b6b' : 'red'
+        }).addTo(layerGroup);
+    });
+}
+
+/**
+ * Update temporary layer for drawing (line or polygon)
+ * @param {string} [type='line'] - Drawing type ('line' or 'polygon')
+ */
+function updateDrawingTempLayer() {
     if (state.drawing.tempLayer) {
         state.map.removeLayer(state.drawing.tempLayer);
     }
@@ -72,26 +103,21 @@ export function updateLineTempLayer() {
 
         // Add polyline for clicked points
         if (state.drawing.points.length >= 2) {
-            L.polyline(pointsLatLng, {
-                color: 'red',
-                weight: 2,
-                interactive: false
-            }).addTo(state.drawing.tempLayer);
+            L.polyline(pointsLatLng, TEMP_LINE_STYLE).addTo(state.drawing.tempLayer);
         }
 
         // Add markers at each vertex
-        state.drawing.points.forEach((p, i) => {
-            L.circleMarker([p.lat, p.lng], {
-                radius: i === 0 ? 8 : 5,
-                color: 'red',
-                fillColor: i === 0 ? '#ff6b6b' : 'red',
-                fillOpacity: 1,
-                interactive: false
-            }).addTo(state.drawing.tempLayer);
-        });
+        createVertexMarkers(state.drawing.points, state.drawing.tempLayer);
 
         state.drawing.tempLayer.addTo(state.map);
     }
+}
+
+/**
+ * Update temporary layer for line drawing
+ */
+export function updateLineTempLayer() {
+    updateDrawingTempLayer();
 }
 
 /**
@@ -125,36 +151,7 @@ export function handlePolygonClick(lat, lng) {
  * Update temporary layer for polygon drawing
  */
 export function updateTempLayer() {
-    if (state.drawing.tempLayer) {
-        state.map.removeLayer(state.drawing.tempLayer);
-    }
-
-    if (state.drawing.points.length >= 1) {
-        const pointsLatLng = state.drawing.points.map(p => [p.lat, p.lng]);
-        state.drawing.tempLayer = L.layerGroup();
-
-        // Add polyline (open path) for clicked points
-        if (state.drawing.points.length >= 2) {
-            L.polyline(pointsLatLng, {
-                color: 'red',
-                weight: 2,
-                interactive: false
-            }).addTo(state.drawing.tempLayer);
-        }
-
-        // Add markers at each vertex
-        state.drawing.points.forEach((p, i) => {
-            L.circleMarker([p.lat, p.lng], {
-                radius: i === 0 ? 8 : 5,
-                color: 'red',
-                fillColor: i === 0 ? '#ff6b6b' : 'red',
-                fillOpacity: 1,
-                interactive: false
-            }).addTo(state.drawing.tempLayer);
-        });
-
-        state.drawing.tempLayer.addTo(state.map);
-    }
+    updateDrawingTempLayer();
 }
 
 /**
@@ -173,7 +170,7 @@ export function finishPolygon() {
  * Create circle from modal
  */
 export function createCircle() {
-    const radius = parseFloat(document.getElementById('circle-radius').value);
+    const radius = Number.parseFloat(document.getElementById('circle-radius').value);
 
     if (radius > 0 && state.drawing.center) {
         createElement('circle', {
@@ -190,8 +187,8 @@ export function createCircle() {
  * Create bearing line from modal
  */
 export function createBearingLine() {
-    const distance = parseFloat(document.getElementById('bearing-distance').value);
-    const angle = parseFloat(document.getElementById('bearing-angle').value);
+    const distance = Number.parseFloat(document.getElementById('bearing-distance').value);
+    const angle = Number.parseFloat(document.getElementById('bearing-angle').value);
 
     if (distance > 0 && state.drawing.startPoint) {
         const end = calculateDestination(state.drawing.startPoint, distance, angle);

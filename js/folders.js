@@ -16,7 +16,7 @@ let draggedElementId = null;
  * Create a new folder
  */
 export function createFolder() {
-    const id = 'folder-' + Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    const id = `folder-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 11)}`;
     const folder = {
         id: id,
         name: 'Nouveau dossier',
@@ -45,7 +45,7 @@ export function createFolderElement(folder, elements) {
             <span class="folder-title">${folder.name}</span>
             <span class="folder-count">${elements.length}</span>
             <div class="folder-actions">
-                <button class="folder-btn folder-visibility ${!folder.visible ? 'hidden-state' : ''}" title="Afficher/Masquer">
+                <button class="folder-btn folder-visibility ${folder.visible ? '' : 'hidden-state'}" title="Afficher/Masquer">
                     <i class="fas ${folder.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
                 </button>
                 <button class="folder-btn folder-edit" title="Renommer">
@@ -147,7 +147,7 @@ export function createFolderElement(folder, elements) {
  */
 export function createElementItem(el) {
     const item = document.createElement('div');
-    item.className = `element-item type-${el.type}${!el.visible ? ' element-hidden' : ''}`;
+    item.className = `element-item type-${el.type}${el.visible ? '' : ' element-hidden'}`;
     item.draggable = true;
     item.dataset.elementId = el.id;
 
@@ -157,7 +157,7 @@ export function createElementItem(el) {
     const details = getElementDetails(el);
 
     item.innerHTML = `
-        <button class="element-visibility ${!el.visible ? 'hidden-state' : ''}" title="Afficher/Masquer">
+        <button class="element-visibility ${el.visible ? '' : 'hidden-state'}" title="Afficher/Masquer">
             <i class="fas ${el.visible ? 'fa-eye' : 'fa-eye-slash'}"></i>
         </button>
         <div class="element-info">
