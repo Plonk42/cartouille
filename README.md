@@ -36,6 +36,7 @@ Carte barbouillée, trésor trouvé !
 - Bâtiments (service WFS, visible à partir du zoom 16)
 - Zones tampons (buffers) autour des bâtiments
 - Superposition photo aérienne avec opacité réglable
+- Courbes de niveau à altitude spécifique (service TMS vectoriel)
 - Périmètre du Parc naturel régional de Chartreuse (données OpenStreetMap)
 
 ### 🔍 Recherche
@@ -55,13 +56,39 @@ Aucune installation n'est requise ! Il s'agit d'une application web statique.
 ## 🛠️ Technologies utilisées
 
 - **[Leaflet](https://leafletjs.com/)** v1.9.4 - Bibliothèque de cartographie interactive
-- **[Turf.js](https://turfjs.org/)** - Analyse et calculs géospatiaux
+- **[Leaflet.VectorGrid](https://github.com/Leaflet/Leaflet.VectorGrid)** - Rendu de tuiles vectorielles (MVT/PBF)
+- **[Turf.js](https://turfjs.org/)** v7.1.0 - Analyse et calculs géospatiaux
 - **[FontAwesome](https://fontawesome.com/)** v6.7.2 - Icônes
-- **[IGN Services](https://geoservices.ign.fr/)** - Fonds de carte et données géographiques
+- **[IGN Géoplateforme](https://geoservices.ign.fr/)** - Fonds de carte, WFS et tuiles vectorielles
 - **[Nominatim](https://nominatim.org/)** - Géocodage et recherche de lieux
-- **HTML5, CSS3, JavaScript** (Vanilla JS, pas de framework)
+- **ES6 Modules** - Architecture JavaScript modulaire
 
-## 📊 Format des données
+## � Structure du projet
+
+```
+cartouille/
+├── index.html              # Point d'entrée HTML
+├── style.css               # Styles CSS
+├── js/                     # Modules ES6
+│   ├── main.js             # Point d'entrée JavaScript
+│   ├── config.js           # Configuration et constantes
+│   ├── state.js            # État global de l'application
+│   ├── map.js              # Initialisation de la carte Leaflet
+│   ├── layers.js           # Gestion des couches (IGN, WFS, contours)
+│   ├── drawing.js          # Outils de dessin
+│   ├── measurements.js     # Outils de mesure
+│   ├── elements.js         # Gestion des éléments (popups, liste)
+│   ├── folders.js          # Gestion des dossiers
+│   ├── events.js           # Événements carte et menu contextuel
+│   ├── geojson.js          # Import/export GeoJSON
+│   ├── persistence.js      # Sauvegarde LocalStorage
+│   ├── ui.js               # Composants UI (recherche, convertisseur)
+│   └── utils.js            # Fonctions utilitaires
+├── parc_chartreuse_data.js # Données GeoJSON du Parc de Chartreuse
+└── parc_chartreuse.geojson # Fichier source GeoJSON
+```
+
+## �📊 Format des données
 
 L'application utilise le format **GeoJSON** standard ([RFC 7946](https://tools.ietf.org/html/rfc7946)) pour stocker et exporter les éléments dessinés et les mesures.
 
