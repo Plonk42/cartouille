@@ -9,7 +9,7 @@ import { createPopupContent, updateElementList } from './elements.js';
 import { elementToGeoJSON } from './geojson.js';
 import { saveState } from './persistence.js';
 import { clearCursorLayer, resetMeasurementState, state } from './state.js';
-import { closeModal, generateId, getCardinalDirection, openModal } from './utils.js';
+import { closeModal, formatArea, formatCoord, formatDistance, generateId, getCardinalDirection, openModal } from './utils.js';
 
 /**
  * Initialize measurement tools
@@ -94,13 +94,7 @@ export function handleMeasurementClick(latlng) {
     state.measurement.points.push({ lat, lng });
 
     // Add temporary marker
-    const marker = L.circleMarker([lat, lng], {
-        radius: 6,
-        color: '#16a085',
-        fillColor: '#16a085',
-        fillOpacity: 1,
-        interactive: false
-    }).addTo(state.map);
+    const marker = L.circleMarker([lat, lng], CONFIG.styles.measurementMarker).addTo(state.map);
     state.measurement.tempLayers.push(marker);
 
     const type = state.measurement.active;
@@ -120,11 +114,10 @@ export function handleMeasurementClick(latlng) {
         case 'centroid':
         case 'bbox':
             if (points.length >= 2) {
-                const line = L.polyline(points.map(p => [p.lat, p.lng]), {
-                    color: '#16a085',
-                    weight: 2,
-                    interactive: false
-                }).addTo(state.map);
+                const line = L.polyline(
+                    points.map(p => [p.lat, p.lng]),
+                    CONFIG.styles.measurementLine
+                ).addTo(state.map);
                 state.measurement.tempLayers.push(line);
             }
             document.getElementById('measurement-instruction').textContent =
@@ -132,11 +125,10 @@ export function handleMeasurementClick(latlng) {
             break;
         case 'along':
             if (points.length >= 2) {
-                const line = L.polyline(points.map(p => [p.lat, p.lng]), {
-                    color: '#16a085',
-                    weight: 2,
-                    interactive: false
-                }).addTo(state.map);
+                const line = L.polyline(
+                    points.map(p => [p.lat, p.lng]),
+                    CONFIG.styles.measurementLine
+                ).addTo(state.map);
                 state.measurement.tempLayers.push(line);
             }
             document.getElementById('measurement-instruction').textContent =
@@ -199,15 +191,15 @@ function calculateDistance(p1, p2) {
         displayHtml: `
             <div class="result-item">
                 <span class="result-label">Distance:</span>
-                <span class="result-value">${distanceM < 1000 ? distanceM.toFixed(2) + ' m' : distanceKm.toFixed(3) + ' km'}</span>
+                <span class="result-value">${formatDistance(distanceM)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Point A:</span>
-                <span class="result-value">${p1.lat.toFixed(6)}, ${p1.lng.toFixed(6)}</span>
+                <span class="result-value">${formatCoord(p1)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Point B:</span>
-                <span class="result-value">${p2.lat.toFixed(6)}, ${p2.lng.toFixed(6)}</span>
+                <span class="result-value">${formatCoord(p2)}</span>
             </div>
         `
     };
@@ -233,15 +225,15 @@ function calculateBearing(p1, p2) {
             </div>
             <div class="result-item">
                 <span class="result-label">Distance:</span>
-                <span class="result-value">${distanceM < 1000 ? distanceM.toFixed(2) + ' m' : distanceKm.toFixed(3) + ' km'}</span>
+                <span class="result-value">${formatDistance(distanceM)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Point de départ:</span>
-                <span class="result-value">${p1.lat.toFixed(6)}, ${p1.lng.toFixed(6)}</span>
+                <span class="result-value">${formatCoord(p1)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Point d'arrivée:</span>
-                <span class="result-value">${p2.lat.toFixed(6)}, ${p2.lng.toFixed(6)}</span>
+                <span class="result-value">${formatCoord(p2)}</span>
             </div>
         `
     };
@@ -265,11 +257,11 @@ function calculateArea(points) {
         displayHtml: `
             <div class="result-item">
                 <span class="result-label">Surface:</span>
-                <span class="result-value">${areaM2 < 10000 ? areaM2.toFixed(2) + ' m²' : areaHa.toFixed(4) + ' ha'}</span>
+                <span class="result-value">${formatArea(areaM2)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Périmètre:</span>
-                <span class="result-value">${perimeterM < 1000 ? perimeterM.toFixed(2) + ' m' : perimeterKm.toFixed(3) + ' km'}</span>
+                <span class="result-value">${formatDistance(perimeterM)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Nombre de points:</span>
@@ -288,19 +280,20 @@ function calculateCenter(points) {
     const centerLng = centerPoint.geometry.coordinates[0];
     const areaM2 = turf.area(polygon);
     const areaHa = areaM2 / 10000;
+    const center = { lat: centerLat, lng: centerLng };
 
     return {
         type: 'measurement-center',
         title: 'Centre de zone',
-        data: { points, center: { lat: centerLat, lng: centerLng }, areaM2, areaHa },
+        data: { points, center, areaM2, areaHa },
         displayHtml: `
             <div class="result-item">
                 <span class="result-label">Centre:</span>
-                <span class="result-value">${centerLat.toFixed(6)}, ${centerLng.toFixed(6)}</span>
+                <span class="result-value">${formatCoord(center)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Surface:</span>
-                <span class="result-value">${areaM2 < 10000 ? areaM2.toFixed(2) + ' m²' : areaHa.toFixed(4) + ' ha'}</span>
+                <span class="result-value">${formatArea(areaM2)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Nombre de points:</span>
@@ -314,24 +307,25 @@ function calculateCentroid(points) {
     const coords = points.map(p => [p.lng, p.lat]);
     coords.push(coords[0]);
     const polygon = turf.polygon([coords]);
-    const centroid = turf.centerOfMass(polygon);
-    const centroidLat = centroid.geometry.coordinates[1];
-    const centroidLng = centroid.geometry.coordinates[0];
+    const centroidPoint = turf.centerOfMass(polygon);
+    const centroidLat = centroidPoint.geometry.coordinates[1];
+    const centroidLng = centroidPoint.geometry.coordinates[0];
     const areaM2 = turf.area(polygon);
     const areaHa = areaM2 / 10000;
+    const centroid = { lat: centroidLat, lng: centroidLng };
 
     return {
         type: 'measurement-centroid',
         title: 'Centre de masse',
-        data: { points, centroid: { lat: centroidLat, lng: centroidLng }, areaM2, areaHa },
+        data: { points, centroid, areaM2, areaHa },
         displayHtml: `
             <div class="result-item">
                 <span class="result-label">Centre de masse:</span>
-                <span class="result-value">${centroidLat.toFixed(6)}, ${centroidLng.toFixed(6)}</span>
+                <span class="result-value">${formatCoord(centroid)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Surface:</span>
-                <span class="result-value">${areaM2 < 10000 ? areaM2.toFixed(2) + ' m²' : areaHa.toFixed(4) + ' ha'}</span>
+                <span class="result-value">${formatArea(areaM2)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Nombre de points:</span>
@@ -351,6 +345,8 @@ function calculateBbox(points) {
     const bboxAreaHa = bboxArea / 10000;
     const width = turf.distance([bbox[0], bbox[1]], [bbox[2], bbox[1]], { units: 'kilometers' }) * 1000;
     const height = turf.distance([bbox[0], bbox[1]], [bbox[0], bbox[3]], { units: 'kilometers' }) * 1000;
+    const minCorner = { lat: bbox[1], lng: bbox[0] };
+    const maxCorner = { lat: bbox[3], lng: bbox[2] };
 
     return {
         type: 'measurement-bbox',
@@ -363,11 +359,11 @@ function calculateBbox(points) {
         displayHtml: `
             <div class="result-item">
                 <span class="result-label">SO (min):</span>
-                <span class="result-value">${bbox[1].toFixed(6)}, ${bbox[0].toFixed(6)}</span>
+                <span class="result-value">${formatCoord(minCorner)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">NE (max):</span>
-                <span class="result-value">${bbox[3].toFixed(6)}, ${bbox[2].toFixed(6)}</span>
+                <span class="result-value">${formatCoord(maxCorner)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Dimensions:</span>
@@ -375,7 +371,7 @@ function calculateBbox(points) {
             </div>
             <div class="result-item">
                 <span class="result-label">Surface bbox:</span>
-                <span class="result-value">${bboxArea < 10000 ? bboxArea.toFixed(2) + ' m²' : bboxAreaHa.toFixed(4) + ' ha'}</span>
+                <span class="result-value">${formatArea(bboxArea)}</span>
             </div>
         `
     };
@@ -387,26 +383,28 @@ function calculateAlong(points) {
     const lengthKm = turf.length(line, { units: 'kilometers' });
     const lengthM = lengthKm * 1000;
     const halfwayPoint = turf.along(line, lengthKm / 2, { units: 'kilometers' });
-    const halfLat = halfwayPoint.geometry.coordinates[1];
-    const halfLng = halfwayPoint.geometry.coordinates[0];
+    const alongPoint = {
+        lat: halfwayPoint.geometry.coordinates[1],
+        lng: halfwayPoint.geometry.coordinates[0]
+    };
 
     return {
         type: 'measurement-along',
         title: 'Point sur ligne',
         data: {
             points, lengthM, lengthKm,
-            alongPoint: { lat: halfLat, lng: halfLng },
+            alongPoint,
             alongDistance: lengthM / 2,
             alongPercent: 50
         },
         displayHtml: `
             <div class="result-item">
                 <span class="result-label">Longueur totale:</span>
-                <span class="result-value">${lengthM < 1000 ? lengthM.toFixed(2) + ' m' : lengthKm.toFixed(3) + ' km'}</span>
+                <span class="result-value">${formatDistance(lengthM)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Point à 50%:</span>
-                <span class="result-value">${halfLat.toFixed(6)}, ${halfLng.toFixed(6)}</span>
+                <span class="result-value">${formatCoord(alongPoint)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Nombre de segments:</span>

@@ -17,6 +17,9 @@ import { saveState } from './persistence.js';
 import { state } from './state.js';
 import {
     createColoredMarkerIcon,
+    formatArea,
+    formatCoord,
+    formatDistance,
     generateId,
     getCardinalDirection,
     parsePointsFromText
@@ -243,126 +246,133 @@ function createTypeSpecificFields(feature) {
 }
 
 /**
+ * Get coordinates from geometry (handles GeometryCollection)
+ */
+function getCoords(geom, isPolygon = false) {
+    const coords = geom.type === 'GeometryCollection' ? geom.geometries[0].coordinates : geom.coordinates;
+    return isPolygon ? coords[0] : coords;
+}
+
+/**
+ * Create computed value field HTML
+ */
+function computedField(label, value) {
+    return `
+        <div class="popup-field">
+            <label class="popup-label">${label}:</label>
+            <span class="computed-value">${value}</span>
+        </div>`;
+}
+
+/**
+ * Create points textarea field HTML
+ */
+function pointsTextarea(coords, isPolygon = false) {
+    const points = isPolygon ? coords.slice(0, -1) : coords;
+    const pointsStr = points.map(p => `${p[1].toFixed(6)}, ${p[0].toFixed(6)}`).join('\n');
+    return `
+        <div class="popup-field">
+            <label class="popup-label">Points (Lat, Lng):</label>
+            <textarea class="popup-textarea points-input" style="height: 100px;">${pointsStr}</textarea>
+        </div>`;
+}
+
+/**
+ * Create distance/bearing measurement fields
+ */
+function createDistanceBearingFields(feature) {
+    const props = feature.properties;
+    const coords = getCoords(feature.geometry);
+    let html = '';
+
+    html += createPopupField('Point A - Lat', 'number', coords[0][1], 'start-lat-input');
+    html += createPopupField('Point A - Lng', 'number', coords[0][0], 'start-lng-input');
+    html += createPopupField('Point B - Lat', 'number', coords[1][1], 'end-lat-input');
+    html += createPopupField('Point B - Lng', 'number', coords[1][0], 'end-lng-input');
+
+    if (props.distanceM !== undefined) {
+        html += computedField('Distance', formatDistance(props.distanceM));
+    }
+    if (props.type === 'measurement-bearing' && props.bearing !== undefined) {
+        html += computedField('Direction', `${props.bearing.toFixed(1)}° (${props.cardinal})`);
+    }
+    return html;
+}
+
+/**
+ * Create polygon-based measurement fields (area, center, centroid, bbox)
+ */
+function createPolygonMeasurementFields(feature) {
+    const props = feature.properties;
+    const type = props.type;
+    const coords = getCoords(feature.geometry, true);
+    let html = pointsTextarea(coords, true);
+
+    if (props.areaM2 !== undefined) {
+        html += computedField('Surface', formatArea(props.areaM2));
+    }
+    if (type === 'measurement-center' && props.center) {
+        html += computedField('Centre', formatCoord(props.center));
+    }
+    if (type === 'measurement-centroid' && props.centroid) {
+        html += computedField('Centre de masse', formatCoord(props.centroid));
+    }
+    if (type === 'measurement-bbox' && props.bbox) {
+        html += computedField('Dimensions', `${props.width.toFixed(1)}m × ${props.height.toFixed(1)}m`);
+    }
+    return html;
+}
+
+/**
+ * Create along measurement fields
+ */
+function createAlongFields(feature) {
+    const props = feature.properties;
+    const coords = getCoords(feature.geometry);
+    let html = pointsTextarea(coords);
+
+    if (props.lengthM !== undefined) {
+        html += computedField('Longueur totale', formatDistance(props.lengthM));
+    }
+
+    const alongPercent = props.alongPercent ?? 50;
+    const alongDistance = props.alongDistance ?? (props.lengthM / 2);
+
+    html += `
+        <div class="popup-field">
+            <label class="popup-label">Position (%):</label>
+            <input type="number" step="0.1" class="popup-input along-percent-input" value="${alongPercent.toFixed(1)}" min="0" max="100">
+        </div>
+        <div class="popup-field">
+            <label class="popup-label">Position (m):</label>
+            <input type="number" step="0.1" class="popup-input along-distance-input" value="${alongDistance.toFixed(2)}" min="0" max="${props.lengthM}">
+        </div>`;
+
+    if (props.alongPoint) {
+        html += computedField('Point calculé', `${props.alongPoint.lat.toFixed(6)}, ${props.alongPoint.lng.toFixed(6)}`);
+    }
+    return html;
+}
+
+/** @constant {Set<string>} Polygon-based measurement types */
+const POLYGON_MEASUREMENT_TYPES = new Set(['measurement-area', 'measurement-center', 'measurement-centroid', 'measurement-bbox']);
+
+/**
  * Create measurement-specific popup fields
  */
 function createMeasurementFields(feature) {
-    const props = feature.properties;
-    const type = props.type;
-    const geom = feature.geometry;
-    let html = '';
+    const type = feature.properties.type;
 
     if (type === 'measurement-distance' || type === 'measurement-bearing') {
-        const coords = geom.type === 'GeometryCollection' ? geom.geometries[0].coordinates : geom.coordinates;
-        html += createPopupField('Point A - Lat', 'number', coords[0][1], 'start-lat-input');
-        html += createPopupField('Point A - Lng', 'number', coords[0][0], 'start-lng-input');
-        html += createPopupField('Point B - Lat', 'number', coords[1][1], 'end-lat-input');
-        html += createPopupField('Point B - Lng', 'number', coords[1][0], 'end-lng-input');
-
-        if (props.distanceM !== undefined) {
-            const distStr = props.distanceM < 1000
-                ? props.distanceM.toFixed(2) + ' m'
-                : props.distanceKm.toFixed(3) + ' km';
-            html += `
-                <div class="popup-field">
-                    <label class="popup-label">Distance:</label>
-                    <span class="computed-value">${distStr}</span>
-                </div>`;
-        }
-
-        if (type === 'measurement-bearing' && props.bearing !== undefined) {
-            html += `
-                <div class="popup-field">
-                    <label class="popup-label">Direction:</label>
-                    <span class="computed-value">${props.bearing.toFixed(1)}° (${props.cardinal})</span>
-                </div>`;
-        }
-    } else if (['measurement-area', 'measurement-center', 'measurement-centroid', 'measurement-bbox'].includes(type)) {
-        const polyCoords = geom.type === 'GeometryCollection' ? geom.geometries[0].coordinates[0] : geom.coordinates[0];
-        const points = polyCoords.slice(0, -1);
-        const pointsStr = points.map(p => `${p[1].toFixed(6)}, ${p[0].toFixed(6)}`).join('\n');
-        html += `
-            <div class="popup-field">
-                <label class="popup-label">Points (Lat, Lng):</label>
-                <textarea class="popup-textarea points-input" style="height: 100px;">${pointsStr}</textarea>
-            </div>`;
-
-        if (props.areaM2 !== undefined) {
-            const areaStr = props.areaM2 < 10000
-                ? props.areaM2.toFixed(2) + ' m²'
-                : props.areaHa.toFixed(4) + ' ha';
-            html += `
-                <div class="popup-field">
-                    <label class="popup-label">Surface:</label>
-                    <span class="computed-value">${areaStr}</span>
-                </div>`;
-        }
-
-        if (type === 'measurement-center' && props.center) {
-            html += `
-                <div class="popup-field">
-                    <label class="popup-label">Centre:</label>
-                    <span class="computed-value">${props.center.lat.toFixed(6)}, ${props.center.lng.toFixed(6)}</span>
-                </div>`;
-        }
-
-        if (type === 'measurement-centroid' && props.centroid) {
-            html += `
-                <div class="popup-field">
-                    <label class="popup-label">Centre de masse:</label>
-                    <span class="computed-value">${props.centroid.lat.toFixed(6)}, ${props.centroid.lng.toFixed(6)}</span>
-                </div>`;
-        }
-
-        if (type === 'measurement-bbox' && props.bbox) {
-            html += `
-                <div class="popup-field">
-                    <label class="popup-label">Dimensions:</label>
-                    <span class="computed-value">${props.width.toFixed(1)}m × ${props.height.toFixed(1)}m</span>
-                </div>`;
-        }
-    } else if (type === 'measurement-along') {
-        const lineCoords = geom.type === 'GeometryCollection' ? geom.geometries[0].coordinates : geom.coordinates;
-        const pointsStr = lineCoords.map(p => `${p[1].toFixed(6)}, ${p[0].toFixed(6)}`).join('\n');
-        html += `
-            <div class="popup-field">
-                <label class="popup-label">Points (Lat, Lng):</label>
-                <textarea class="popup-textarea points-input" style="height: 100px;">${pointsStr}</textarea>
-            </div>`;
-
-        if (props.lengthM !== undefined) {
-            const lenStr = props.lengthM < 1000
-                ? props.lengthM.toFixed(2) + ' m'
-                : props.lengthKm.toFixed(3) + ' km';
-            html += `
-                <div class="popup-field">
-                    <label class="popup-label">Longueur totale:</label>
-                    <span class="computed-value">${lenStr}</span>
-                </div>`;
-        }
-
-        const alongPercent = props.alongPercent ?? 50;
-        const alongDistance = props.alongDistance ?? (props.lengthM / 2);
-
-        html += `
-            <div class="popup-field">
-                <label class="popup-label">Position (%):</label>
-                <input type="number" step="0.1" class="popup-input along-percent-input" value="${alongPercent.toFixed(1)}" min="0" max="100">
-            </div>
-            <div class="popup-field">
-                <label class="popup-label">Position (m):</label>
-                <input type="number" step="0.1" class="popup-input along-distance-input" value="${alongDistance.toFixed(2)}" min="0" max="${props.lengthM}">
-            </div>`;
-
-        if (props.alongPoint) {
-            html += `
-                <div class="popup-field">
-                    <label class="popup-label">Point calculé:</label>
-                    <span class="computed-value along-point-display">${props.alongPoint.lat.toFixed(6)}, ${props.alongPoint.lng.toFixed(6)}</span>
-                </div>`;
-        }
+        return createDistanceBearingFields(feature);
     }
-
-    return html;
+    if (POLYGON_MEASUREMENT_TYPES.has(type)) {
+        return createPolygonMeasurementFields(feature);
+    }
+    if (type === 'measurement-along') {
+        return createAlongFields(feature);
+    }
+    return '';
 }
 
 /**
@@ -477,42 +487,59 @@ function parseInputValue(container, selector) {
 }
 
 /**
+ * Update marker position from popup
+ */
+function updateMarkerFromPopup(feature, div, layer) {
+    const lat = parseInputValue(div, '.lat-input');
+    const lng = parseInputValue(div, '.lng-input');
+    if (lat !== null && lng !== null) {
+        feature.geometry.coordinates = [lng, lat];
+        layer.setLatLng([lat, lng]);
+    }
+}
+
+/**
+ * Update circle position and radius from popup
+ */
+function updateCircleFromPopup(feature, div, layer) {
+    updateMarkerFromPopup(feature, div, layer);
+    const radius = parseInputValue(div, '.radius-input');
+    if (radius !== null) {
+        feature.properties.radius = radius;
+        layer.setRadius(radius);
+    }
+}
+
+/**
+ * Update polygon from popup
+ */
+function updatePolygonFromPopup(feature, div, layer) {
+    const pointsText = div.querySelector('.points-input')?.value;
+    const newPoints = parsePointsFromText(pointsText || '');
+    if (newPoints.length >= 3) {
+        feature.geometry.coordinates = [newPoints.map(p => [p.lng, p.lat])];
+        layer.setLatLngs(newPoints.map(p => [p.lat, p.lng]));
+    }
+}
+
+/** @constant {Object} Type-specific update handlers */
+const TYPE_UPDATERS = {
+    'marker': updateMarkerFromPopup,
+    'circle': updateCircleFromPopup,
+    'line': updateLineFromPopup,
+    'bearing': updateBearingFromPopup,
+    'polygon': updatePolygonFromPopup
+};
+
+/**
  * Update type-specific properties from popup
  */
 function updateTypeSpecificFromPopup(feature, div, layer) {
-    const props = feature.properties;
-    const type = props.type;
+    const type = feature.properties.type;
+    const updater = TYPE_UPDATERS[type];
 
-    if (type === 'marker') {
-        const lat = parseInputValue(div, '.lat-input');
-        const lng = parseInputValue(div, '.lng-input');
-        if (lat !== null && lng !== null) {
-            feature.geometry.coordinates = [lng, lat];
-            layer.setLatLng([lat, lng]);
-        }
-    } else if (type === 'circle') {
-        const lat = parseInputValue(div, '.lat-input');
-        const lng = parseInputValue(div, '.lng-input');
-        const radius = parseInputValue(div, '.radius-input');
-        if (lat !== null && lng !== null) {
-            feature.geometry.coordinates = [lng, lat];
-            layer.setLatLng([lat, lng]);
-        }
-        if (radius !== null) {
-            props.radius = radius;
-            layer.setRadius(radius);
-        }
-    } else if (type === 'line') {
-        updateLineFromPopup(feature, div, layer);
-    } else if (type === 'bearing') {
-        updateBearingFromPopup(feature, div, layer);
-    } else if (type === 'polygon') {
-        const pointsText = div.querySelector('.points-input')?.value;
-        const newPoints = parsePointsFromText(pointsText || '');
-        if (newPoints.length >= 3) {
-            feature.geometry.coordinates = [newPoints.map(p => [p.lng, p.lat])];
-            layer.setLatLngs(newPoints.map(p => [p.lat, p.lng]));
-        }
+    if (updater) {
+        updater(feature, div, layer);
     } else if (type.startsWith('measurement-')) {
         updateMeasurementFromPopup(feature, div, layer);
     }

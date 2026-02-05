@@ -212,125 +212,26 @@ export function elementToGeoJSON(element) {
 }
 
 /**
- * Convert a GeoJSON Feature to element data structure
- * @param {Object} feature - GeoJSON Feature
- * @returns {Object} Element with id, type, and data
+ * Bind popup to a layer (handles LayerGroup for measurements)
+ * @param {L.Layer} layer - Leaflet layer
+ * @param {Object} feature - GeoJSON feature
  */
-export function geoJSONToElement(feature) {
-    const props = feature.properties;
-    const geom = feature.geometry;
-    const type = props.type;
-    const id = feature.id || props.id;
+function bindPopupToLayer(layer, feature) {
+    const popupFn = () => createPopupContent(feature);
 
-    const data = {
-        title: props.title || '',
-        description: props.description || '',
-        color: props.color || CONFIG.colors.default
-    };
-
-    switch (type) {
-        case 'marker':
-            data.lat = geom.coordinates[1];
-            data.lng = geom.coordinates[0];
-            break;
-
-        case 'circle':
-            data.center = {
-                lat: geom.coordinates[1],
-                lng: geom.coordinates[0]
-            };
-            data.radius = props.radius;
-            break;
-
-        case 'line':
-        case 'bearing':
-            data.start = {
-                lat: geom.coordinates[0][1],
-                lng: geom.coordinates[0][0]
-            };
-            data.end = {
-                lat: geom.coordinates[1][1],
-                lng: geom.coordinates[1][0]
-            };
-            if (props.distance) data.distance = props.distance;
-            if (props.bearing !== undefined) data.bearing = props.bearing;
-            break;
-
-        case 'polygon':
-            data.points = geom.coordinates[0].slice(0, -1).map(coord => ({
-                lat: coord[1],
-                lng: coord[0]
-            }));
-            break;
-
-        case 'measurement-distance':
-        case 'measurement-bearing':
-            data.start = { lat: geom.coordinates[0][1], lng: geom.coordinates[0][0] };
-            data.end = { lat: geom.coordinates[1][1], lng: geom.coordinates[1][0] };
-            data.distanceM = props.distanceM;
-            data.distanceKm = props.distanceKm;
-            if (props.bearing !== undefined) {
-                data.bearing = props.bearing;
-                data.cardinal = props.cardinal;
+    if (layer instanceof L.LayerGroup) {
+        layer.eachLayer(subLayer => {
+            if (subLayer.bindPopup) {
+                subLayer.bindPopup(popupFn);
             }
-            break;
-
-        case 'measurement-area':
-            data.points = geom.coordinates[0].slice(0, -1).map(coord => ({
-                lat: coord[1], lng: coord[0]
-            }));
-            Object.assign(data, {
-                areaM2: props.areaM2,
-                areaHa: props.areaHa,
-                areaKm2: props.areaKm2,
-                perimeterM: props.perimeterM,
-                perimeterKm: props.perimeterKm
-            });
-            break;
-
-        case 'measurement-center':
-        case 'measurement-centroid': {
-            data.points = geom.geometries[0].coordinates[0].slice(0, -1).map(coord => ({
-                lat: coord[1], lng: coord[0]
-            }));
-            const centerProp = type === 'measurement-center' ? 'center' : 'centroid';
-            data[centerProp] = props[centerProp] || {
-                lat: geom.geometries[1].coordinates[1],
-                lng: geom.geometries[1].coordinates[0]
-            };
-            if (props.areaM2) data.areaM2 = props.areaM2;
-            if (props.areaHa) data.areaHa = props.areaHa;
-            break;
-        }
-
-        case 'measurement-bbox':
-            data.points = geom.geometries[0].coordinates[0].slice(0, -1).map(coord => ({
-                lat: coord[1], lng: coord[0]
-            }));
-            data.bbox = props.bbox;
-            data.width = props.width;
-            data.height = props.height;
-            break;
-
-        case 'measurement-along':
-            data.points = geom.geometries[0].coordinates.map(coord => ({
-                lat: coord[1], lng: coord[0]
-            }));
-            data.alongPoint = props.alongPoint || {
-                lat: geom.geometries[1].coordinates[1],
-                lng: geom.geometries[1].coordinates[0]
-            };
-            data.lengthM = props.lengthM;
-            data.lengthKm = props.lengthKm;
-            data.alongDistance = props.alongDistance;
-            break;
+        });
+    } else if (layer.bindPopup) {
+        layer.bindPopup(popupFn);
     }
-
-    return { id, type, data };
 }
 
 /**
- * Restore a feature from GeoJSON
+ * Restore a feature from GeoJSON (works for all feature types including measurements)
  * @param {Object} feature - GeoJSON feature
  * @param {boolean} visible - Whether the feature should be visible
  */
@@ -345,38 +246,15 @@ export function restoreFeature(feature, visible = true) {
     state.featureLayers.set(feature.id, layer);
     state.featureVisibility.set(feature.id, visible);
 
-    layer.bindPopup(() => createPopupContent(feature));
+    bindPopupToLayer(layer, feature);
     updateElementList();
 }
 
 /**
- * Restore a measurement feature from GeoJSON
- * @param {Object} feature - GeoJSON feature
- * @param {boolean} visible - Whether the feature should be visible
+ * @deprecated Use restoreFeature instead - kept for backwards compatibility
  */
 export function restoreMeasurementFeature(feature, visible = true) {
-    const layer = createLayerFromFeature(feature);
-
-    if (visible) {
-        layer.addTo(state.map);
-    }
-
-    state.features.push(feature);
-    state.featureLayers.set(feature.id, layer);
-    state.featureVisibility.set(feature.id, visible);
-
-    // Bind popup with color support
-    if (layer instanceof L.LayerGroup) {
-        layer.eachLayer(subLayer => {
-            if (subLayer.bindPopup) {
-                subLayer.bindPopup(() => createPopupContent(feature));
-            }
-        });
-    } else if (layer.bindPopup) {
-        layer.bindPopup(() => createPopupContent(feature));
-    }
-
-    updateElementList();
+    restoreFeature(feature, visible);
 }
 
 /**

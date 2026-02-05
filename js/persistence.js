@@ -4,7 +4,7 @@
  */
 
 import { toggleAllElementsVisibility } from './elements.js';
-import { restoreFeature, restoreMeasurementFeature } from './geojson.js';
+import { restoreFeature } from './geojson.js';
 import { restoreLayerSettings } from './layers.js';
 import { state } from './state.js';
 
@@ -75,15 +75,10 @@ export function restoreState() {
             restoreLayerSettings(props.layerSettings);
         }
 
-        // Restore features
+        // Restore features (restoreFeature handles all types including measurements)
         data.features.forEach(feature => {
-            const type = feature.properties.type;
             const visible = feature.properties._visible !== false;
-            if (type.startsWith('measurement-')) {
-                restoreMeasurementFeature(feature, visible);
-            } else {
-                restoreFeature(feature, visible);
-            }
+            restoreFeature(feature, visible);
         });
     } catch (error) {
         console.error('Error restoring state:', error);

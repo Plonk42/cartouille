@@ -3,6 +3,7 @@
  * @module events
  */
 
+import { CONFIG } from './config.js';
 import {
     finishLine,
     finishPolygon,
@@ -16,24 +17,6 @@ import { createElement } from './elements.js';
 import { completeMeasurement, handleMeasurementClick } from './measurements.js';
 import { state } from './state.js';
 import { openModal } from './utils.js';
-
-/** @constant {Object} Measurement preview line style */
-const MEASUREMENT_PREVIEW_STYLE = {
-    color: '#16a085',
-    dashArray: '5, 10',
-    weight: 2,
-    fillOpacity: 0.1,
-    interactive: false
-};
-
-/** @constant {Object} Drawing preview line style */
-const DRAWING_PREVIEW_STYLE = {
-    color: 'red',
-    dashArray: '5, 10',
-    weight: 2,
-    fillOpacity: 0.1,
-    interactive: false
-};
 
 /** @constant {Set<string>} Measurement types that use polygon */
 const POLYGON_MEASUREMENTS = new Set(['area', 'center', 'centroid', 'bbox']);
@@ -82,11 +65,11 @@ function renderMeasurementPreview(latlng) {
 
     if (POLYGON_MEASUREMENTS.has(state.measurement.active) && state.measurement.points.length >= 1) {
         const previewPoints = [...state.measurement.points.map(p => [p.lat, p.lng]), [lat, lng]];
-        state.drawing.cursorLayer = L.polygon(previewPoints, MEASUREMENT_PREVIEW_STYLE).addTo(state.map);
+        state.drawing.cursorLayer = L.polygon(previewPoints, CONFIG.styles.measurementPreview).addTo(state.map);
     } else {
         state.drawing.cursorLayer = L.polyline(
             [[lastPoint.lat, lastPoint.lng], [lat, lng]],
-            MEASUREMENT_PREVIEW_STYLE
+            CONFIG.styles.measurementPreview
         ).addTo(state.map);
     }
 }
@@ -98,7 +81,7 @@ function renderMeasurementPreview(latlng) {
 function renderPolygonPreview(latlng) {
     const { lat, lng } = latlng;
     const previewPoints = [...state.drawing.points.map(p => [p.lat, p.lng]), [lat, lng]];
-    state.drawing.cursorLayer = L.polygon(previewPoints, DRAWING_PREVIEW_STYLE).addTo(state.map);
+    state.drawing.cursorLayer = L.polygon(previewPoints, CONFIG.styles.drawingPreview).addTo(state.map);
 }
 
 /**
@@ -110,7 +93,7 @@ function renderLinePreview(latlng) {
     const lastPoint = state.drawing.points.at(-1);
     state.drawing.cursorLayer = L.polyline(
         [[lastPoint.lat, lastPoint.lng], [lat, lng]],
-        DRAWING_PREVIEW_STYLE
+        CONFIG.styles.drawingPreview
     ).addTo(state.map);
 }
 
@@ -121,7 +104,7 @@ function renderLinePreview(latlng) {
 function renderBearingPreview(latlng) {
     state.drawing.cursorLayer = L.polyline(
         [state.drawing.startPoint, latlng],
-        DRAWING_PREVIEW_STYLE
+        CONFIG.styles.drawingPreview
     ).addTo(state.map);
 }
 

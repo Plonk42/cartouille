@@ -7,7 +7,7 @@ import { CONFIG } from './config.js';
 import { deleteElement, toggleElementVisibility, updateElementList } from './elements.js';
 import { saveState } from './persistence.js';
 import { state } from './state.js';
-import { getIcon } from './utils.js';
+import { formatArea, formatCoord, formatDistance, generateId, getIcon } from './utils.js';
 
 // Drag and drop state
 let draggedElementId = null;
@@ -16,7 +16,7 @@ let draggedElementId = null;
  * Create a new folder
  */
 export function createFolder() {
-    const id = `folder-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 11)}`;
+    const id = `folder-${generateId()}`;
     const folder = {
         id: id,
         name: 'Nouveau dossier',
@@ -221,21 +221,21 @@ function getElementDetails(el) {
         case 'circle':
             return `Rayon: ${data.radius}m`;
         case 'line':
-            return `Dist: ${(data.distance / 1000).toFixed(2)}km`;
+            return `Dist: ${formatDistance(data.distance)}`;
         case 'bearing':
-            return `${(data.distance / 1000).toFixed(2)}km @ ${data.bearing}°`;
+            return `${formatDistance(data.distance)} @ ${data.bearing}°`;
         case 'polygon':
             return `${data.points?.length || 0} pts`;
         case 'measurement-distance':
-            return data.distanceM < 1000 ? `${data.distanceM.toFixed(2)} m` : `${data.distanceKm.toFixed(3)} km`;
+            return formatDistance(data.distanceM);
         case 'measurement-area':
-            return data.areaM2 < 10000 ? `${data.areaM2.toFixed(2)} m²` : `${data.areaHa.toFixed(4)} ha`;
+            return formatArea(data.areaM2);
         case 'measurement-bearing':
             return `${data.bearing.toFixed(1)}° (${data.cardinal})`;
         case 'measurement-center':
-            return `${data.center.lat.toFixed(4)}, ${data.center.lng.toFixed(4)}`;
+            return formatCoord(data.center, 4);
         case 'measurement-centroid':
-            return `${data.centroid.lat.toFixed(4)}, ${data.centroid.lng.toFixed(4)}`;
+            return formatCoord(data.centroid, 4);
         case 'measurement-bbox':
             return `${data.width.toFixed(1)}m × ${data.height.toFixed(1)}m`;
         case 'measurement-along':

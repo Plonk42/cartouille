@@ -62,6 +62,47 @@ export const CONFIG = {
         wmtsPrivate: 'https://data.geopf.fr/private/wmts',
         wfs: 'https://data.geopf.fr/wfs/ows',
         nominatim: 'https://nominatim.openstreetmap.org/search'
+    },
+
+    /** Layer styles for consistent rendering */
+    styles: {
+        measurementPreview: {
+            color: '#16a085',
+            dashArray: '5, 10',
+            weight: 2,
+            fillOpacity: 0.1,
+            interactive: false
+        },
+        drawingPreview: {
+            color: 'red',
+            dashArray: '5, 10',
+            weight: 2,
+            fillOpacity: 0.1,
+            interactive: false
+        },
+        tempMarker: {
+            color: 'red',
+            fillColor: 'red',
+            fillOpacity: 1,
+            interactive: false
+        },
+        tempLine: {
+            color: 'red',
+            weight: 2,
+            interactive: false
+        },
+        measurementMarker: {
+            radius: 6,
+            color: '#16a085',
+            fillColor: '#16a085',
+            fillOpacity: 1,
+            interactive: false
+        },
+        measurementLine: {
+            color: '#16a085',
+            weight: 2,
+            interactive: false
+        }
     }
 };
 

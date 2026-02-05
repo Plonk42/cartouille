@@ -3,6 +3,7 @@
  * @module drawing
  */
 
+import { CONFIG } from './config.js';
 import { createElement } from './elements.js';
 import { clearCursorLayer, resetDrawingState as resetState, state } from './state.js';
 import { calculateDestination, closeModal } from './utils.js';
@@ -58,21 +59,6 @@ export function handleLineClick(lat, lng) {
     clearCursorLayer();
 }
 
-/** @constant {Object} Temp layer marker styles */
-const TEMP_MARKER_STYLE = {
-    color: 'red',
-    fillColor: 'red',
-    fillOpacity: 1,
-    interactive: false
-};
-
-/** @constant {Object} Temp layer line styles */
-const TEMP_LINE_STYLE = {
-    color: 'red',
-    weight: 2,
-    interactive: false
-};
-
 /**
  * Create vertex markers for temp layer
  * @param {Array<{lat: number, lng: number}>} points - Points to mark
@@ -81,7 +67,7 @@ const TEMP_LINE_STYLE = {
 function createVertexMarkers(points, layerGroup) {
     points.forEach((p, i) => {
         L.circleMarker([p.lat, p.lng], {
-            ...TEMP_MARKER_STYLE,
+            ...CONFIG.styles.tempMarker,
             radius: i === 0 ? 8 : 5,
             fillColor: i === 0 ? '#ff6b6b' : 'red'
         }).addTo(layerGroup);
@@ -103,7 +89,7 @@ function updateDrawingTempLayer() {
 
         // Add polyline for clicked points
         if (state.drawing.points.length >= 2) {
-            L.polyline(pointsLatLng, TEMP_LINE_STYLE).addTo(state.drawing.tempLayer);
+            L.polyline(pointsLatLng, CONFIG.styles.tempLine).addTo(state.drawing.tempLayer);
         }
 
         // Add markers at each vertex

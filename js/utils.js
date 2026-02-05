@@ -163,3 +163,49 @@ export function formatArea(squareMeters) {
     }
     return `${(squareMeters / 10000).toFixed(4)} ha`;
 }
+
+/**
+ * Convert GeoJSON coordinates [lng, lat] to Leaflet [lat, lng]
+ * @param {Array<number>} coord - GeoJSON coordinate [lng, lat]
+ * @returns {Array<number>} Leaflet coordinate [lat, lng]
+ */
+export function geoJSONToLatLng(coord) {
+    return [coord[1], coord[0]];
+}
+
+/**
+ * Convert Leaflet point to GeoJSON coordinates
+ * @param {{lat: number, lng: number}} point - Point with lat/lng
+ * @returns {Array<number>} GeoJSON coordinate [lng, lat]
+ */
+export function pointToGeoJSON(point) {
+    return [point.lng, point.lat];
+}
+
+/**
+ * Convert array of points to GeoJSON coordinates
+ * @param {Array<{lat: number, lng: number}>} points - Array of points
+ * @returns {Array<Array<number>>} Array of GeoJSON coordinates
+ */
+export function pointsToGeoJSON(points) {
+    return points.map(p => [p.lng, p.lat]);
+}
+
+/**
+ * Convert GeoJSON coordinates to array of points
+ * @param {Array<Array<number>>} coords - Array of GeoJSON coordinates
+ * @returns {Array<{lat: number, lng: number}>} Array of points
+ */
+export function geoJSONToPoints(coords) {
+    return coords.map(c => ({ lat: c[1], lng: c[0] }));
+}
+
+/**
+ * Format a coordinate point for display
+ * @param {{lat: number, lng: number}} point - Point with lat/lng
+ * @param {number} [precision=6] - Decimal precision
+ * @returns {string} Formatted coordinate string
+ */
+export function formatCoord(point, precision = 6) {
+    return `${point.lat.toFixed(precision)}, ${point.lng.toFixed(precision)}`;
+}

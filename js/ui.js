@@ -169,6 +169,34 @@ export function initCoordinateConverter() {
     });
 }
 
+/** @constant {string} DMS number pattern - matches integers or decimals */
+const DMS_NUMBER = String.raw`\d+(?:[.,]\d+)?`;
+
+/** @constant {string} DMS direction pattern */
+const DMS_DIR = 'nord?|sud?|est?|west|ouest?|[nsew]';
+
+/**
+ * Build regex pattern for DMS coordinates
+ * @returns {RegExp} Compiled DMS pattern
+ */
+// biome-ignore lint/complexity/useRegexLiterals: Complex pattern built from parts for readability
+function buildDMSPattern() {
+    const deg = String.raw`(${DMS_NUMBER})[\s°]*?`;
+    const min = String.raw`(${DMS_NUMBER})?[\s′']*?`;
+    const sec = String.raw`(${DMS_NUMBER})?[\s″"]*?`;
+    const dir = String.raw`\s*(${DMS_DIR})`;
+    return new RegExp(deg + min + sec + dir, 'gi');
+}
+
+/** @constant {RegExp} DMS coordinate pattern */
+const DMS_PATTERN = buildDMSPattern();
+
+/** @constant {Set<string>} Southern/Western direction prefixes */
+const NEGATIVE_DIRECTIONS = new Set(['s', 'o', 'w']);
+
+/** @constant {Set<string>} Latitude direction prefixes */
+const LATITUDE_DIRECTIONS = new Set(['n', 's']);
+
 /**
  * Parse a single DMS coordinate match
  * @param {Array} match - Regex match array
@@ -178,14 +206,29 @@ function parseDMSCoord(match) {
     const deg = Number.parseFloat(match[1].replace(',', '.')) || 0;
     const min = Number.parseFloat((match[2] || '0').replace(',', '.')) || 0;
     const sec = Number.parseFloat((match[3] || '0').replace(',', '.')) || 0;
-    const dir = match[4].toLowerCase();
+    const dirPrefix = match[4].toLowerCase()[0];
 
     let decimal = deg + (min / 60) + (sec / 3600);
-    if (dir.startsWith('s') || dir.startsWith('o') || dir.startsWith('w')) {
+    if (NEGATIVE_DIRECTIONS.has(dirPrefix)) {
         decimal = -decimal;
     }
 
-    return { decimal, isLatitude: dir.startsWith('n') || dir.startsWith('s') };
+    return { decimal, isLatitude: LATITUDE_DIRECTIONS.has(dirPrefix) };
+}
+
+/**
+ * Normalize DMS input string for parsing
+ * @param {string} input - Raw DMS string
+ * @returns {string} Normalized string
+ */
+function normalizeDMSInput(input) {
+    return input
+        .toLowerCase()
+        .replaceAll(/[,;]/g, ' ')
+        .replaceAll(/['\u2019]/g, '\u2032')
+        .replaceAll(/["\u201d]/g, '\u2033')
+        .replaceAll(/\s+/g, ' ')
+        .trim();
 }
 
 /**
@@ -194,17 +237,8 @@ function parseDMSCoord(match) {
  * @returns {Object|null} {lat, lng} or null if parsing fails
  */
 function parseDMSString(input) {
-    const normalized = input
-        .toLowerCase()
-        .replaceAll(/[,;]/g, ' ')
-        .replaceAll(/['\u2019]/g, '\u2032')
-        .replaceAll(/["\u201d]/g, '\u2033')
-        .replaceAll(/\s+/g, ' ')
-        .trim();
-
-    // Simplified DMS pattern
-    const dmsPattern = /(\d+(?:[.,]\d+)?)[\s°]*?(\d+(?:[.,]\d+)?)?[\s′']*?(\d+(?:[.,]\d+)?)?[\s″"]*?\s*(nord?|sud?|est?|west|ouest?|[nsew])/gi;
-    const matches = [...normalized.matchAll(dmsPattern)];
+    const normalized = normalizeDMSInput(input);
+    const matches = [...normalized.matchAll(DMS_PATTERN)];
 
     if (matches.length < 2) return null;
 

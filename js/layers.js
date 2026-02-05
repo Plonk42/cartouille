@@ -358,80 +358,81 @@ async function loadContourLine() {
 }
 
 /**
+ * Set a checkbox value and optionally show a control
+ * @param {string} checkboxId - Checkbox element ID
+ * @param {boolean} value - Checked value
+ * @param {string} [showControlId] - Optional control ID to show when checked
+ */
+function setCheckbox(checkboxId, value, showControlId) {
+    const checkbox = document.getElementById(checkboxId);
+    if (checkbox && value !== undefined) {
+        checkbox.checked = value;
+        if (value && showControlId) {
+            document.getElementById(showControlId)?.classList.remove('hidden');
+        }
+    }
+}
+
+/**
+ * Set a slider value and its display label
+ * @param {string} sliderId - Slider element ID
+ * @param {string} labelId - Label element ID
+ * @param {number} value - Slider value
+ * @param {string} suffix - Value suffix (e.g., '%', 'm')
+ */
+function setSlider(sliderId, labelId, value, suffix) {
+    const slider = document.getElementById(sliderId);
+    const label = document.getElementById(labelId);
+    if (slider && value !== undefined) {
+        slider.value = value;
+        if (label) label.textContent = `${value}${suffix}`;
+    }
+}
+
+/**
+ * Trigger change event on enabled layers
+ * @param {Object} settings - Layer settings object
+ */
+function triggerLayerUpdates(settings) {
+    const layerTriggers = [
+        ['orthoEnabled', 'overlay-ortho'],
+        ['buildingsEnabled', 'overlay-buildings'],
+        ['buffersEnabled', 'overlay-buffers'],
+        ['parcChartreuseEnabled', 'overlay-parc-chartreuse'],
+        ['contourEnabled', 'overlay-contour']
+    ];
+
+    for (const [settingKey, elementId] of layerTriggers) {
+        if (settings[settingKey]) {
+            document.getElementById(elementId)?.dispatchEvent(new Event('change'));
+        }
+    }
+}
+
+/**
  * Restore layer settings from saved state
  * @param {Object} settings - Layer settings object
  */
 export function restoreLayerSettings(settings) {
     // Ortho layer
-    const orthoCheckbox = document.getElementById('overlay-ortho');
-    if (orthoCheckbox && settings.orthoEnabled !== undefined) {
-        orthoCheckbox.checked = settings.orthoEnabled;
-        if (settings.orthoEnabled) {
-            document.getElementById('opacity-control')?.classList.remove('hidden');
-        }
-    }
-
-    const orthoOpacity = document.getElementById('ortho-opacity');
-    const opacityValue = document.getElementById('opacity-value');
-    if (orthoOpacity && settings.orthoOpacity !== undefined) {
-        orthoOpacity.value = settings.orthoOpacity;
-        if (opacityValue) opacityValue.textContent = `${settings.orthoOpacity}%`;
-    }
+    setCheckbox('overlay-ortho', settings.orthoEnabled, 'opacity-control');
+    setSlider('ortho-opacity', 'opacity-value', settings.orthoOpacity, '%');
 
     // Buildings and buffers
-    const buildingsCheckbox = document.getElementById('overlay-buildings');
-    if (buildingsCheckbox && settings.buildingsEnabled !== undefined) {
-        buildingsCheckbox.checked = settings.buildingsEnabled;
-    }
-
-    const buffersCheckbox = document.getElementById('overlay-buffers');
-    if (buffersCheckbox && settings.buffersEnabled !== undefined) {
-        buffersCheckbox.checked = settings.buffersEnabled;
-        if (settings.buffersEnabled) {
-            document.getElementById('buffer-radius-control')?.classList.remove('hidden');
-        }
-    }
-
-    const bufferRadius = document.getElementById('buffer-radius');
-    const bufferRadiusValue = document.getElementById('buffer-radius-value');
-    if (bufferRadius && settings.bufferRadius !== undefined) {
-        bufferRadius.value = settings.bufferRadius;
-        if (bufferRadiusValue) bufferRadiusValue.textContent = `${settings.bufferRadius}m`;
-    }
+    setCheckbox('overlay-buildings', settings.buildingsEnabled);
+    setCheckbox('overlay-buffers', settings.buffersEnabled, 'buffer-radius-control');
+    setSlider('buffer-radius', 'buffer-radius-value', settings.bufferRadius, 'm');
 
     // Parc Chartreuse
-    const parcChartreuseCheckbox = document.getElementById('overlay-parc-chartreuse');
-    if (parcChartreuseCheckbox && settings.parcChartreuseEnabled !== undefined) {
-        parcChartreuseCheckbox.checked = settings.parcChartreuseEnabled;
-    }
+    setCheckbox('overlay-parc-chartreuse', settings.parcChartreuseEnabled);
 
     // Contour line
-    const contourCheckbox = document.getElementById('overlay-contour');
-    if (contourCheckbox && settings.contourEnabled !== undefined) {
-        contourCheckbox.checked = settings.contourEnabled;
-    }
-
+    setCheckbox('overlay-contour', settings.contourEnabled);
     const contourAltitude = document.getElementById('contour-altitude');
     if (contourAltitude && settings.contourAltitude !== undefined) {
         contourAltitude.value = settings.contourAltitude;
     }
 
     // Trigger layer updates after map is ready
-    setTimeout(() => {
-        if (settings.orthoEnabled) {
-            document.getElementById('overlay-ortho')?.dispatchEvent(new Event('change'));
-        }
-        if (settings.buildingsEnabled) {
-            document.getElementById('overlay-buildings')?.dispatchEvent(new Event('change'));
-        }
-        if (settings.buffersEnabled) {
-            document.getElementById('overlay-buffers')?.dispatchEvent(new Event('change'));
-        }
-        if (settings.parcChartreuseEnabled) {
-            document.getElementById('overlay-parc-chartreuse')?.dispatchEvent(new Event('change'));
-        }
-        if (settings.contourEnabled) {
-            document.getElementById('overlay-contour')?.dispatchEvent(new Event('change'));
-        }
-    }, LAYER_RESTORE_DELAY);
+    setTimeout(() => triggerLayerUpdates(settings), LAYER_RESTORE_DELAY);
 }
