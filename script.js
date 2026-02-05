@@ -3118,6 +3118,156 @@ function initSettings() {
 }
 
 /**
+ * Coordinate converter initialization (DMS to Decimal)
+ */
+function initCoordinateConverter() {
+    const dmsInput = document.getElementById('dms-input');
+    const btnCopy = document.getElementById('btn-copy-coords');
+    const btnGoto = document.getElementById('btn-goto-coords');
+    const btnMarker = document.getElementById('btn-marker-coords');
+    const resultDiv = document.getElementById('converter-result');
+    const decimalCoordsSpan = document.getElementById('decimal-coords');
+
+    let lastConvertedLat = null;
+    let lastConvertedLng = null;
+    let debounceTimer = null;
+
+    /**
+     * Parse a DMS string like "39° 50′ 27″ nord, 0° 30′ 26″ ouest"
+     * Returns { lat, lng } or null if parsing fails
+     */
+    function parseDMSString(input) {
+        // Normalize the input: replace various separators and formats
+        let normalized = input
+            .toLowerCase()
+            .replace(/[,;]/g, ' ')  // Replace commas/semicolons with spaces
+            .replace(/['\u2019]/g, '\u2032')  // Normalize apostrophes to prime
+            .replace(/["\u201d]/g, '\u2033')  // Normalize quotes to double prime
+            .replace(/\s+/g, ' ')  // Normalize multiple spaces
+            .trim();
+
+        // Regex to match DMS pattern: degrees, optional minutes, optional seconds, direction
+        // Supports formats like: 39° 50′ 27″ nord, 39°50'27"N, 39 50 27 N, etc.
+        const dmsPattern = /(\d+(?:[.,]\d+)?)[\s°d]*(\d+(?:[.,]\d+)?)?[\s′'m]*(\d+(?:[.,]\d+)?)?[\s″"s]*\s*(nord?|sud?|est?|west|ouest?|[nseoNSEOW])/gi;
+
+        const matches = [...normalized.matchAll(dmsPattern)];
+
+        if (matches.length < 2) {
+            return null;
+        }
+
+        function parseCoord(match) {
+            const deg = parseFloat(match[1].replace(',', '.')) || 0;
+            const min = parseFloat((match[2] || '0').replace(',', '.')) || 0;
+            const sec = parseFloat((match[3] || '0').replace(',', '.')) || 0;
+            const dir = match[4].toLowerCase();
+
+            let decimal = deg + (min / 60) + (sec / 3600);
+
+            // Negative for South and West
+            if (dir.startsWith('s') || dir.startsWith('o') || dir.startsWith('w')) {
+                decimal = -decimal;
+            }
+
+            // Determine if this is latitude or longitude based on direction
+            const isLatitude = dir.startsWith('n') || dir.startsWith('s');
+
+            return { decimal, isLatitude };
+        }
+
+        const coord1 = parseCoord(matches[0]);
+        const coord2 = parseCoord(matches[1]);
+
+        let lat, lng;
+
+        if (coord1.isLatitude && !coord2.isLatitude) {
+            lat = coord1.decimal;
+            lng = coord2.decimal;
+        } else if (!coord1.isLatitude && coord2.isLatitude) {
+            lat = coord2.decimal;
+            lng = coord1.decimal;
+        } else {
+            // If both are same type, assume first is lat, second is lng
+            lat = coord1.decimal;
+            lng = coord2.decimal;
+        }
+
+        return { lat, lng };
+    }
+
+    function doConvert() {
+        const input = dmsInput.value.trim();
+        if (!input) {
+            resultDiv.classList.add('hidden');
+            lastConvertedLat = null;
+            lastConvertedLng = null;
+            return;
+        }
+
+        const result = parseDMSString(input);
+
+        if (!result) {
+            resultDiv.classList.add('hidden');
+            lastConvertedLat = null;
+            lastConvertedLng = null;
+            return;
+        }
+
+        lastConvertedLat = result.lat;
+        lastConvertedLng = result.lng;
+
+        // Format with 5 decimal places
+        const formattedLat = lastConvertedLat.toFixed(5);
+        const formattedLng = lastConvertedLng.toFixed(5);
+
+        decimalCoordsSpan.textContent = `${formattedLat}, ${formattedLng}`;
+        resultDiv.classList.remove('hidden');
+    }
+
+    // Auto-convert on input with debounce
+    dmsInput.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(doConvert, 300);
+    });
+
+    // Convert immediately on Enter
+    dmsInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            clearTimeout(debounceTimer);
+            doConvert();
+        }
+    });
+
+    btnCopy.addEventListener('click', () => {
+        const coords = decimalCoordsSpan.textContent;
+        navigator.clipboard.writeText(coords).then(() => {
+            // Visual feedback
+            const originalIcon = btnCopy.innerHTML;
+            btnCopy.innerHTML = '<i class="fas fa-check"></i>';
+            setTimeout(() => {
+                btnCopy.innerHTML = originalIcon;
+            }, 1500);
+        });
+    });
+
+    btnGoto.addEventListener('click', () => {
+        if (lastConvertedLat !== null && lastConvertedLng !== null) {
+            state.map.setView([lastConvertedLat, lastConvertedLng], 14);
+        }
+    });
+
+    btnMarker.addEventListener('click', () => {
+        if (lastConvertedLat !== null && lastConvertedLng !== null) {
+            createElement('marker', {
+                lat: lastConvertedLat,
+                lng: lastConvertedLng,
+                title: 'Marqueur'
+            });
+        }
+    });
+}
+
+/**
  * UI initialization - search, context menu, collapsible sections
  */
 
@@ -3282,5 +3432,6 @@ document.addEventListener('DOMContentLoaded', () => {
     initDataManagement();
     initMeasurementTools();
     initSettings();
+    initCoordinateConverter();
     restoreState();
 });

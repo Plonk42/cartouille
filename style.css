@@ -195,6 +195,60 @@ h3 {
     border-color: var(--accent-color);
 }
 
+/* Converter Section */
+.converter-form {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.converter-input-row {
+    display: flex;
+}
+
+#dms-input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+#dms-input::placeholder {
+    font-size: 0.8rem;
+    color: #999;
+}
+
+.converter-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background-color: var(--light-bg);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.converter-result span {
+    flex: 1;
+    font-family: monospace;
+    font-size: 0.95rem;
+}
+
+.icon-btn {
+    padding: 6px 10px;
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.icon-btn:hover {
+    background-color: #2980b9;
+}
+
 /* Layers Control */
 .layer-option {
     margin-bottom: 8px;

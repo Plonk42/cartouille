@@ -150,6 +150,30 @@
                     </div>
                 </div>
 
+                <!-- Convertisseur de coordonnées -->
+                <div class="section converter-section">
+                    <h3 class="section-header" data-collapse="converter-content">
+                        <span>Convertisseur</span>
+                        <i class="fas fa-chevron-down section-toggle"></i>
+                    </h3>
+                    <div class="section-content" id="converter-content">
+                        <div class="converter-form">
+                            <div class="converter-input-row">
+                                <input type="text" id="dms-input" placeholder="Ex: 39° 50′ 27″ nord, 0° 30′ 26″ ouest">
+                            </div>
+                            <div id="converter-result" class="converter-result hidden">
+                                <span id="decimal-coords"></span>
+                                <button id="btn-copy-coords" class="icon-btn" title="Copier"><i
+                                        class="fas fa-copy"></i></button>
+                                <button id="btn-goto-coords" class="icon-btn" title="Aller à"><i
+                                        class="fas fa-crosshairs"></i></button>
+                                <button id="btn-marker-coords" class="icon-btn" title="Créer un marqueur"><i
+                                        class="fas fa-map-marker-alt"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Informations -->
                 <div class="section info-section">
                     <h3 class="section-header" data-collapse="info-content">
