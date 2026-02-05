@@ -62,7 +62,7 @@ function initBaseLayers() {
 function initOverlayLayers() {
     state.layers.overlayOrtho = L.tileLayer(
         `${CONFIG.endpoints.wmtsPublic}?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}&FORMAT=image/jpeg`,
-        { attribution: '&copy; IGN', maxZoom: 19, opacity: 0.5 }
+        { attribution: '&copy; IGN', maxZoom: 19, opacity: 0.5, pane: 'orthoPane' }
     );
 
     state.layers.parcChartreuse = null;
@@ -221,7 +221,8 @@ export async function updateBuildings() {
                 fillColor: CONFIG.colors.highlight,
                 fillOpacity: 0.4
             },
-            interactive: false
+            interactive: false,
+            pane: 'overlayPane'
         }).addTo(state.map);
 
         if (document.getElementById('overlay-buffers')?.checked) {
@@ -258,7 +259,8 @@ function renderBuffers(data) {
                 fillOpacity: 0.2,
                 dashArray: '5, 5'
             },
-            interactive: false
+            interactive: false,
+            pane: 'overlayPane'
         }).addTo(state.map);
     } catch (e) {
         console.error('Turf error:', e);
@@ -290,7 +292,8 @@ async function loadParcChartreuse() {
                 if (feature.properties?.name) {
                     layer.bindPopup(`<b>${feature.properties.name}</b><br>Source: ${feature.properties.source || 'Unknown'}`);
                 }
-            }
+            },
+            pane: 'overlayPane'
         }).addTo(state.map);
     } catch (error) {
         console.error('Error loading Parc de Chartreuse:', error);
@@ -337,6 +340,7 @@ async function loadContourLine() {
             interactive: true,
             maxZoom: 19,
             minZoom: MIN_ZOOM_CONTOUR,
+            pane: 'overlayPane',
             getFeatureId: (feature) => feature.properties.altitude
         });
 

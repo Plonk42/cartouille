@@ -47,7 +47,7 @@
                     </h3>
                     <div class="section-content" id="layers-content">
                         <div class="layer-option">
-                            <label>Fond de carte:</label>
+                            <label for="base-layer-select">Fond de carte:</label>
                             <select id="base-layer-select">
                                 <option value="scan25">IGN Scan 25</option>
                                 <option value="plan">IGN Plan</option>
@@ -268,7 +268,7 @@
     <div id="modal-circle" class="modal hidden">
         <div class="modal-content">
             <h3>Nouveau Cercle</h3>
-            <label>Rayon (mètres):</label>
+            <label for="circle-radius">Rayon (mètres):</label>
             <input type="number" id="circle-radius" min="1" value="100">
             <div class="modal-buttons">
                 <button id="btn-cancel-circle">Annuler</button>
@@ -280,9 +280,9 @@
     <div id="modal-bearing" class="modal hidden">
         <div class="modal-content">
             <h3>Nouvelle Ligne Directionnelle</h3>
-            <label>Distance (mètres):</label>
+            <label for="bearing-distance">Distance (mètres):</label>
             <input type="number" id="bearing-distance" min="1" value="1000">
-            <label>Azimut (degrés 0-359):</label>
+            <label for="bearing-angle">Azimut (degrés 0-359):</label>
             <input type="number" id="bearing-angle" min="0" max="359" value="0">
             <div class="modal-buttons">
                 <button id="btn-cancel-bearing">Annuler</button>
@@ -296,7 +296,7 @@
         <div class="modal-content">
             <h3 id="measurement-result-title">Résultat de mesure</h3>
             <div id="measurement-result-content" class="measurement-result-content"></div>
-            <label>Titre de l'élément:</label>
+            <label for="measurement-result-name">Titre de l'élément:</label>
             <input type="text" id="measurement-result-name" placeholder="Nom de la mesure">
             <div class="modal-buttons">
                 <button id="btn-discard-measurement">Annuler</button>

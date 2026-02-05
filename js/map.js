@@ -19,6 +19,13 @@ export function initMap() {
         maxZoom: CONFIG.maxZoom
     });
 
+    // Create custom panes for layer ordering
+    // Default pane z-index: tilePane=200, overlayPane=400, markerPane=600
+    state.map.createPane('orthoPane');
+    state.map.getPane('orthoPane').style.zIndex = 250;
+    state.map.createPane('overlayPane');
+    state.map.getPane('overlayPane').style.zIndex = 350;
+
     // Event Listeners
     state.map.on('moveend', () => {
         saveState();
