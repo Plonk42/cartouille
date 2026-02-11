@@ -8,11 +8,14 @@ import { restoreFeature } from './geojson.js';
 import { restoreLayerSettings } from './layers.js';
 import { state } from './state.js';
 
+/** @type {boolean} Flag to prevent saving during restore */
+let _restoring = false;
+
 /**
  * Save application state to localStorage
  */
 export function saveState() {
-    if (!state.map) return;
+    if (!state.map || _restoring) return;
 
     // Create features with visibility state
     const featuresWithVisibility = state.features.map(f => {
@@ -56,6 +59,7 @@ export function restoreState() {
     const saved = localStorage.getItem('ignMapData');
     if (!saved) return;
 
+    _restoring = true;
     try {
         const data = JSON.parse(saved);
         const props = data.properties || {};
@@ -82,6 +86,8 @@ export function restoreState() {
         });
     } catch (error) {
         console.error('Error restoring state:', error);
+    } finally {
+        _restoring = false;
     }
 }
 
