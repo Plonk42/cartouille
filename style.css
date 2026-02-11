@@ -64,7 +64,9 @@ body {
 /* ==========================================================================
    Utility Classes
    ========================================================================== */
-.hidden { display: none !important; }
+.hidden {
+    display: none !important;
+}
 
 /* ==========================================================================
    Layout
@@ -117,8 +119,16 @@ body {
     position: relative;
 }
 
-.sidebar-header h1 { font-size: 1.5rem; margin: 0; }
-.sidebar-header h2 { font-size: 1.2rem; margin: 0; font-weight: 500; }
+.sidebar-header h1 {
+    font-size: 1.5rem;
+    margin: 0;
+}
+
+.sidebar-header h2 {
+    font-size: 1.2rem;
+    margin: 0;
+    font-weight: 500;
+}
 
 .sidebar-header .header-btn {
     position: absolute;
@@ -134,16 +144,26 @@ body {
     transition: background var(--transition);
 }
 
-.sidebar-header .header-btn:hover { background: rgba(0, 0, 0, 0.3); }
-.sidebar-header .header-btn.all-hidden { opacity: 0.6; }
+.sidebar-header .header-btn:hover {
+    background: rgba(0, 0, 0, 0.3);
+}
+
+.sidebar-header .header-btn.all-hidden {
+    opacity: 0.6;
+}
 
 .sidebar-content {
     flex: 1;
     overflow-y: auto;
 }
 
-#sidebar .sidebar-content { padding: var(--space-lg); }
-#elements-sidebar .sidebar-content { padding: 0; }
+#sidebar .sidebar-content {
+    padding: var(--space-lg);
+}
+
+#elements-sidebar .sidebar-content {
+    padding: 0;
+}
 
 /* ==========================================================================
    Sections (collapsible)
@@ -154,7 +174,9 @@ body {
     padding-bottom: var(--space-lg);
 }
 
-.section:last-child { border-bottom: none; }
+.section:last-child {
+    border-bottom: none;
+}
 
 .section-header {
     display: flex;
@@ -169,14 +191,18 @@ body {
     letter-spacing: 0.5px;
 }
 
-.section-header:hover { color: var(--accent); }
+.section-header:hover {
+    color: var(--accent);
+}
 
 .section-toggle {
     font-size: 0.8rem;
     transition: transform var(--transition-slow);
 }
 
-.section.collapsed .section-toggle { transform: rotate(-90deg); }
+.section.collapsed .section-toggle {
+    transform: rotate(-90deg);
+}
 
 .section-content {
     overflow: hidden;
@@ -229,7 +255,9 @@ select:focus {
     gap: 5px;
 }
 
-#search-input { flex: 1; }
+#search-input {
+    flex: 1;
+}
 
 #search-btn {
     padding: var(--space-sm) 12px;
@@ -240,7 +268,9 @@ select:focus {
     cursor: pointer;
 }
 
-#search-btn:hover { background-color: var(--accent-hover); }
+#search-btn:hover {
+    background-color: var(--accent-hover);
+}
 
 /* ==========================================================================
    Tools Grid
@@ -264,7 +294,9 @@ select:focus {
     transition: all var(--transition);
 }
 
-.tool-btn:hover { background-color: #e2e6ea; }
+.tool-btn:hover {
+    background-color: #e2e6ea;
+}
 
 .tool-btn.active {
     background-color: var(--accent);
@@ -281,10 +313,18 @@ select:focus {
     gap: var(--space-md);
 }
 
-.converter-input-row { display: flex; }
+.converter-input-row {
+    display: flex;
+}
 
-#dms-input { flex: 1; }
-#dms-input::placeholder { font-size: 0.8rem; color: var(--text-light); }
+#dms-input {
+    flex: 1;
+}
+
+#dms-input::placeholder {
+    font-size: 0.8rem;
+    color: var(--text-light);
+}
 
 .converter-result {
     display: flex;
@@ -312,12 +352,16 @@ select:focus {
     transition: background-color var(--transition);
 }
 
-.icon-btn:hover { background-color: var(--accent-hover); }
+.icon-btn:hover {
+    background-color: var(--accent-hover);
+}
 
 /* ==========================================================================
    Layers Control
    ========================================================================== */
-.layer-option { margin-bottom: var(--space-sm); }
+.layer-option {
+    margin-bottom: var(--space-sm);
+}
 
 .layer-option label {
     display: flex;
@@ -341,7 +385,9 @@ select {
 }
 
 #opacity-control input,
-#buffer-radius-control input[type="range"] { flex: 1; }
+#buffer-radius-control input[type="range"] {
+    flex: 1;
+}
 
 #contour-controls {
     display: inline-flex;
@@ -356,7 +402,7 @@ select {
     font-size: var(--font-size-sm);
 }
 
-#contour-controls > span {
+#contour-controls>span {
     font-size: var(--font-size-sm);
     color: #666;
 }
@@ -384,10 +430,48 @@ select {
     transition: box-shadow var(--transition);
 }
 
-.element-item:hover { box-shadow: var(--shadow-sm); }
-.element-item.dragging { opacity: 0.5; }
-.element-item.element-hidden { opacity: 0.5; }
-.element-item.element-hidden .element-title { text-decoration: line-through; color: var(--text-light); }
+.element-item:hover {
+    box-shadow: var(--shadow-sm);
+    background-color: var(--bg-light);
+}
+
+.element-item.dragging {
+    opacity: 0.5;
+}
+
+.element-item.element-hidden {
+    opacity: 0.5;
+}
+
+/* Marker highlight on menu hover */
+.marker-highlighted {
+    filter: drop-shadow(0 0 4px rgba(255, 15, 15, 0.9)) drop-shadow(0 0 8px rgba(255, 15, 15, 0.9));
+    transform: scale(1.3);
+    transition: transform 0.1s ease, filter 0.1s ease;
+    z-index: 10000 !important;
+}
+
+/* Tooltip styling */
+.element-tooltip {
+    background-color: var(--primary);
+    color: var(--white);
+    border: none;
+    border-radius: var(--radius);
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-sm);
+    font-family: var(--font-sans);
+    font-weight: 600;
+    box-shadow: var(--shadow-md);
+}
+
+.element-tooltip::before {
+    border-top-color: var(--primary) !important;
+}
+
+.element-item.element-hidden .element-title {
+    text-decoration: line-through;
+    color: var(--text-light);
+}
 
 .element-info {
     flex: 1;
@@ -423,11 +507,28 @@ select {
     align-items: center;
 }
 
-.element-edit:hover { color: var(--accent); background-color: #f0f7ff; }
-.element-delete:hover { color: var(--danger); background-color: #fff5f5; }
-.element-visibility { color: var(--accent); padding: 0 var(--space-md); }
-.element-visibility:hover { color: var(--primary); }
-.element-visibility.hidden-state { color: #bdc3c7; }
+.element-edit:hover {
+    color: var(--accent);
+    background-color: #f0f7ff;
+}
+
+.element-delete:hover {
+    color: var(--danger);
+    background-color: #fff5f5;
+}
+
+.element-visibility {
+    color: var(--accent);
+    padding: 0 var(--space-md);
+}
+
+.element-visibility:hover {
+    color: var(--primary);
+}
+
+.element-visibility.hidden-state {
+    color: #bdc3c7;
+}
 
 /* ==========================================================================
    Data & Action Buttons
@@ -451,8 +552,15 @@ select {
     gap: 5px;
 }
 
-.action-btn:hover { background-color: var(--primary); }
-.action-btn.small { flex: 0; padding: var(--space-xs) var(--space-sm); font-size: var(--font-size-sm); }
+.action-btn:hover {
+    background-color: var(--primary);
+}
+
+.action-btn.small {
+    flex: 0;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: var(--font-size-sm);
+}
 
 /* ==========================================================================
    Settings
@@ -469,7 +577,9 @@ select {
     color: var(--text);
 }
 
-.settings-field input[type="text"] { font-family: var(--font-mono); }
+.settings-field input[type="text"] {
+    font-family: var(--font-mono);
+}
 
 /* ==========================================================================
    Modals
@@ -484,7 +594,9 @@ select {
     z-index: 2000;
 }
 
-.modal.hidden { display: none; }
+.modal.hidden {
+    display: none;
+}
 
 .modal-content {
     background-color: var(--white);
@@ -530,7 +642,9 @@ select {
     border-color: var(--accent);
 }
 
-.modal-buttons button:hover { opacity: 0.9; }
+.modal-buttons button:hover {
+    opacity: 0.9;
+}
 
 /* ==========================================================================
    Context Menu
@@ -545,7 +659,9 @@ select {
     min-width: 180px;
 }
 
-.context-menu.hidden { display: none; }
+.context-menu.hidden {
+    display: none;
+}
 
 .context-menu ul {
     list-style: none;
@@ -562,15 +678,30 @@ select {
     color: var(--text);
 }
 
-.context-menu li:hover { background-color: var(--bg-light); }
-.context-menu li i { width: 20px; text-align: center; }
+.context-menu li:hover {
+    background-color: var(--bg-light);
+}
+
+.context-menu li i {
+    width: 20px;
+    text-align: center;
+}
 
 /* ==========================================================================
    Leaflet Customization
    ========================================================================== */
-.leaflet-container { cursor: crosshair; }
-.drawing-cursor { cursor: crosshair !important; }
-.colored-marker-icon { background: transparent; border: none; }
+.leaflet-container {
+    cursor: crosshair;
+}
+
+.drawing-cursor {
+    cursor: crosshair !important;
+}
+
+.colored-marker-icon {
+    background: transparent;
+    border: none;
+}
 
 .leaflet-popup-content-wrapper {
     border-radius: var(--radius-lg);
@@ -587,8 +718,13 @@ select {
 /* ==========================================================================
    Popup Styles
    ========================================================================== */
-.popup-content { padding: var(--space-lg); }
-.popup-field { margin-bottom: 12px; }
+.popup-content {
+    padding: var(--space-lg);
+}
+
+.popup-field {
+    margin-bottom: 12px;
+}
 
 .popup-label {
     display: block;
@@ -599,7 +735,9 @@ select {
 }
 
 .popup-input,
-.popup-textarea { width: 100%; }
+.popup-textarea {
+    width: 100%;
+}
 
 .popup-textarea {
     resize: vertical;
@@ -624,9 +762,14 @@ select {
     transition: opacity var(--transition);
 }
 
-.popup-btn:hover { opacity: 0.9; }
+.popup-btn:hover {
+    opacity: 0.9;
+}
+
 .popup-btn-save,
-.popup-btn-delete { background-color: var(--success); }
+.popup-btn-delete {
+    background-color: var(--success);
+}
 
 .computed-value {
     display: inline-block;
@@ -655,7 +798,9 @@ select {
     font-size: var(--font-size-sm);
 }
 
-.measurement-status.hidden { display: none; }
+.measurement-status.hidden {
+    display: none;
+}
 
 .cancel-btn {
     background: none;
@@ -666,7 +811,9 @@ select {
     font-size: 1rem;
 }
 
-.cancel-btn:hover { color: #533f03; }
+.cancel-btn:hover {
+    color: #533f03;
+}
 
 .measurement-result-content {
     background-color: var(--bg-light);
@@ -721,7 +868,9 @@ select {
     user-select: none;
 }
 
-.folder-header:hover { background-color: var(--primary); }
+.folder-header:hover {
+    background-color: var(--primary);
+}
 
 .folder-toggle {
     width: 20px;
@@ -729,7 +878,9 @@ select {
     transition: transform var(--transition);
 }
 
-.folder-item.collapsed .folder-toggle { transform: rotate(-90deg); }
+.folder-item.collapsed .folder-toggle {
+    transform: rotate(-90deg);
+}
 
 .folder-title {
     flex: 1;
@@ -775,7 +926,9 @@ select {
     color: var(--white);
 }
 
-.folder-btn.hidden-state { color: rgba(255, 255, 255, 0.4); }
+.folder-btn.hidden-state {
+    color: rgba(255, 255, 255, 0.4);
+}
 
 .folder-content {
     padding: 5px;
@@ -800,7 +953,9 @@ select {
 /* ==========================================================================
    Root Elements & Add Folder
    ========================================================================== */
-.root-elements { margin-bottom: var(--space-md); }
+.root-elements {
+    margin-bottom: var(--space-md);
+}
 
 .add-folder-btn {
     width: 100%;
@@ -834,4 +989,6 @@ select {
     border-radius: var(--radius);
 }
 
-.root-elements.drag-over { min-height: 50px; }
+.root-elements.drag-over {
+    min-height: 50px;
+}

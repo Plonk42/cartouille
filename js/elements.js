@@ -119,8 +119,11 @@ export function createElement(type, data) {
     state.featureLayers.set(id, layer);
     state.featureVisibility.set(id, true);
 
-    // Bind popup
+    // Bind popup and tooltip
     layer.bindPopup(() => createPopupContent(feature));
+    if (data.title) {
+        layer.bindTooltip(data.title, { sticky: true, direction: 'top', className: 'element-tooltip' });
+    }
     if (type === 'marker') layer.openPopup();
 
     updateElementList();
@@ -439,7 +442,11 @@ export function updateElementFromPopup(feature, div) {
 
     // Common fields
     const titleInput = div.querySelector('.title-input');
-    if (titleInput) props.title = titleInput.value;
+    if (titleInput) {
+        props.title = titleInput.value;
+        // Update tooltip with new title
+        updateLayerTooltip(layer, props.title);
+    }
 
     const descInput = div.querySelector('.desc-input');
     if (descInput) props.description = descInput.value;
@@ -456,6 +463,24 @@ export function updateElementFromPopup(feature, div) {
     updateElementList();
     saveState();
     layer.closePopup();
+}
+
+/**
+ * Update tooltip text on a layer
+ * @param {L.Layer} layer - Leaflet layer
+ * @param {string} title - New tooltip text
+ */
+function updateLayerTooltip(layer, title) {
+    const opts = { sticky: true, direction: 'top', className: 'element-tooltip' };
+    if (layer instanceof L.LayerGroup) {
+        layer.eachLayer(subLayer => {
+            if (subLayer.unbindTooltip) subLayer.unbindTooltip();
+            if (subLayer.bindTooltip && title) subLayer.bindTooltip(title, opts);
+        });
+    } else {
+        if (layer.unbindTooltip) layer.unbindTooltip();
+        if (layer.bindTooltip && title) layer.bindTooltip(title, opts);
+    }
 }
 
 /**

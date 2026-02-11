@@ -201,11 +201,69 @@ export function createElementItem(el) {
         }
     });
 
+    // Hover highlight on map
+    item.addEventListener('mouseenter', () => {
+        if (el.layer && el.visible) {
+            highlightLayer(el.layer, true);
+        }
+    });
+    item.addEventListener('mouseleave', () => {
+        if (el.layer) {
+            highlightLayer(el.layer, false);
+        }
+    });
+
     // Drag events
     item.addEventListener('dragstart', handleDragStart);
     item.addEventListener('dragend', handleDragEnd);
 
     return item;
+}
+
+/**
+ * Highlight or unhighlight a layer on the map
+ * @param {L.Layer} layer - The Leaflet layer
+ * @param {boolean} highlight - Whether to highlight or restore
+ */
+function highlightLayer(layer, highlight) {
+    if (layer instanceof L.LayerGroup) {
+        layer.eachLayer(subLayer => applyHighlight(subLayer, highlight));
+    } else {
+        applyHighlight(layer, highlight);
+    }
+}
+
+/**
+ * Apply highlight style to a single layer
+ */
+function applyHighlight(layer, highlight) {
+    if (layer instanceof L.Marker) {
+        const el = layer.getElement?.();
+        if (el) {
+            if (highlight) {
+                el.classList.add('marker-highlighted');
+            } else {
+                el.classList.remove('marker-highlighted');
+            }
+        }
+    } else if (layer.setStyle) {
+        if (highlight) {
+            if (!layer._originalStyle) {
+                layer._originalStyle = {
+                    weight: layer.options.weight,
+                    opacity: layer.options.opacity,
+                    fillOpacity: layer.options.fillOpacity
+                };
+            }
+            layer.setStyle({ weight: 5, opacity: 1, fillOpacity: 0.5 });
+            if (layer.bringToFront) layer.bringToFront();
+        } else {
+            if (layer._originalStyle) {
+                layer.setStyle(layer._originalStyle);
+                delete layer._originalStyle;
+            }
+        }
+    }
 }
 
 /**

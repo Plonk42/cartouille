@@ -218,15 +218,22 @@ export function elementToGeoJSON(element) {
  */
 function bindPopupToLayer(layer, feature) {
     const popupFn = () => createPopupContent(feature);
+    const tooltipText = feature.properties.title || '';
 
     if (layer instanceof L.LayerGroup) {
         layer.eachLayer(subLayer => {
             if (subLayer.bindPopup) {
                 subLayer.bindPopup(popupFn);
             }
+            if (subLayer.bindTooltip && tooltipText) {
+                subLayer.bindTooltip(tooltipText, { sticky: true, direction: 'top', className: 'element-tooltip' });
+            }
         });
     } else if (layer.bindPopup) {
         layer.bindPopup(popupFn);
+    }
+    if (!(layer instanceof L.LayerGroup) && layer.bindTooltip && tooltipText) {
+        layer.bindTooltip(tooltipText, { sticky: true, direction: 'top', className: 'element-tooltip' });
     }
 }
 
