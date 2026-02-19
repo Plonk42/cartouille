@@ -4,7 +4,7 @@
  */
 
 import { CONFIG } from './config.js';
-import { deleteElement, toggleElementVisibility, updateElementList } from './elements.js';
+import { deleteElement, duplicateElement, toggleElementVisibility, updateElementList } from './elements.js';
 import { saveState } from './persistence.js';
 import { state } from './state.js';
 import { formatArea, formatCoord, formatDistance, generateId, getIcon } from './utils.js';
@@ -141,6 +141,24 @@ export function createFolderElement(folder, elements) {
 }
 
 /**
+ * Open a popup on a layer, handling plain LayerGroups where the popup is on sublayers
+ * @param {L.Layer} layer
+ */
+function openLayerPopup(layer) {
+    if (layer instanceof L.LayerGroup) {
+        let opened = false;
+        layer.eachLayer(sub => {
+            if (!opened && sub.openPopup) {
+                sub.openPopup();
+                opened = true;
+            }
+        });
+    } else if (layer.openPopup) {
+        layer.openPopup();
+    }
+}
+
+/**
  * Create element item DOM for the list
  * @param {Object} el - Element data
  * @returns {HTMLElement} Element item DOM
@@ -164,7 +182,7 @@ export function createElementItem(el) {
             <div class="element-title">${getIcon(el.type)} ${el.data.title}</div>
             <div class="element-details">${details}</div>
         </div>
-        <button class="element-edit" title="Modifier"><i class="fas fa-pencil-alt"></i></button>
+        <button class="element-duplicate" title="Dupliquer"><i class="fas fa-copy"></i></button>
         <button class="element-delete" title="Supprimer"><i class="fas fa-trash"></i></button>
     `;
 
@@ -174,15 +192,10 @@ export function createElementItem(el) {
         toggleElementVisibility(el.id);
     });
 
-    // Edit button
-    item.querySelector('.element-edit').addEventListener('click', (e) => {
+    // Duplicate button
+    item.querySelector('.element-duplicate').addEventListener('click', (e) => {
         e.stopPropagation();
-        if (el.layer.getBounds) {
-            state.map.fitBounds(el.layer.getBounds(), { padding: [50, 50] });
-        } else if (el.layer.getLatLng) {
-            state.map.setView(el.layer.getLatLng(), Math.max(state.map.getZoom(), 14));
-        }
-        setTimeout(() => el.layer.openPopup(), 100);
+        duplicateElement(el.id);
     });
 
     // Delete button
@@ -191,14 +204,14 @@ export function createElementItem(el) {
         deleteElement(el.id);
     });
 
-    // Click to focus
+    // Click to focus and open popup
     item.querySelector('.element-info').addEventListener('click', () => {
         if (el.layer.getBounds) {
             state.map.fitBounds(el.layer.getBounds(), { padding: [50, 50] });
         } else if (el.layer.getLatLng) {
             state.map.setView(el.layer.getLatLng(), 14);
-            el.layer.openPopup();
         }
+        setTimeout(() => openLayerPopup(el.layer), 150);
     });
 
     // Hover highlight on map

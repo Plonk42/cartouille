@@ -17,6 +17,7 @@ import { saveState } from './persistence.js';
 import { state } from './state.js';
 import {
     createColoredMarkerIcon,
+    createCrossMarker,
     formatArea,
     formatCoord,
     formatDistance,
@@ -530,6 +531,11 @@ function updateLayerColor(layer, type, color) {
         layer.eachLayer(subLayer => {
             if (subLayer.setStyle) {
                 subLayer.setStyle({ color: color, fillColor: color });
+            } else if (subLayer instanceof L.Marker) {
+                // Cross marker — rebuild the DivIcon with new color
+                const latlng = subLayer.getLatLng();
+                const newMarker = createCrossMarker(latlng.lat, latlng.lng, color);
+                subLayer.setIcon(newMarker.options.icon);
             }
         });
     }
@@ -986,5 +992,44 @@ export function deleteElement(id) {
     }
 }
 
+/**
+ * Duplicate an element
+ * @param {string} id - Element ID
+ */
+export function duplicateElement(id) {
+    const original = state.features.find(f => f.id === id);
+    if (!original) return;
+
+    const newId = generateId();
+    const clone = JSON.parse(JSON.stringify(original));
+    clone.id = newId;
+    clone.properties.title = clone.properties.title + ' (copie)';
+
+    const layer = createLayerFromFeature(clone);
+    layer.addTo(state.map);
+
+    state.features.push(clone);
+    state.featureLayers.set(newId, layer);
+    state.featureVisibility.set(newId, true);
+
+    const popupFn = () => createPopupContent(clone);
+    const tooltipText = clone.properties.title || '';
+    if (layer instanceof L.LayerGroup) {
+        layer.eachLayer(sub => {
+            if (sub.bindPopup) sub.bindPopup(popupFn);
+            if (sub.bindTooltip && tooltipText)
+                sub.bindTooltip(tooltipText, { sticky: true, direction: 'top', className: 'element-tooltip' });
+        });
+    } else {
+        if (layer.bindPopup) layer.bindPopup(popupFn);
+        if (layer.bindTooltip && tooltipText)
+            layer.bindTooltip(tooltipText, { sticky: true, direction: 'top', className: 'element-tooltip' });
+    }
+
+    updateElementList();
+    saveState();
+}
+
 // Expose for HTML access
 globalThis.deleteElement = deleteElement;
+globalThis.duplicateElement = duplicateElement;
