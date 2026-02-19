@@ -51,7 +51,6 @@ export const CONFIG = {
         'measurement-distance': '#16a085',
         'measurement-bearing': '#8e44ad',
         'measurement-area': '#27ae60',
-        'measurement-center': '#e74c3c',
         'measurement-centroid': '#9b59b6',
         'measurement-bbox': '#3498db',
         'measurement-along': '#1abc9c'

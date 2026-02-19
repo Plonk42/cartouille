@@ -9,7 +9,7 @@ import { createPopupContent, updateElementList } from './elements.js';
 import { elementToGeoJSON } from './geojson.js';
 import { saveState } from './persistence.js';
 import { clearCursorLayer, resetMeasurementState, state } from './state.js';
-import { closeModal, formatArea, formatCoord, formatDistance, generateId, getCardinalDirection, openModal } from './utils.js';
+import { closeModal, createCrossMarker, formatArea, formatCoord, formatDistance, generateId, getCardinalDirection, openModal } from './utils.js';
 
 /**
  * Initialize measurement tools
@@ -19,7 +19,6 @@ export function initMeasurementTools() {
     document.getElementById('measure-distance')?.addEventListener('click', () => startMeasurement('distance'));
     document.getElementById('measure-area')?.addEventListener('click', () => startMeasurement('area'));
     document.getElementById('measure-bearing')?.addEventListener('click', () => startMeasurement('bearing'));
-    document.getElementById('measure-center')?.addEventListener('click', () => startMeasurement('center'));
     document.getElementById('measure-centroid')?.addEventListener('click', () => startMeasurement('centroid'));
     document.getElementById('measure-bbox')?.addEventListener('click', () => startMeasurement('bbox'));
     document.getElementById('measure-along')?.addEventListener('click', () => startMeasurement('along'));
@@ -57,7 +56,6 @@ export function startMeasurement(type) {
         'distance': 'Cliquez sur le premier point, puis sur le second',
         'area': 'Cliquez pour tracer le polygone. Double-cliquez pour terminer',
         'bearing': 'Cliquez sur le point de départ, puis le point d\'arrivée',
-        'center': 'Cliquez pour tracer la zone. Double-cliquez pour terminer',
         'centroid': 'Cliquez pour tracer la zone. Double-cliquez pour terminer',
         'bbox': 'Cliquez pour tracer la zone. Double-cliquez pour terminer',
         'along': 'Cliquez pour tracer la ligne. Double-cliquez pour terminer'
@@ -66,7 +64,7 @@ export function startMeasurement(type) {
 
     document.querySelector('.leaflet-container')?.classList.add('drawing-cursor');
 
-    if (['area', 'center', 'centroid', 'bbox', 'along'].includes(type)) {
+    if (['area', 'centroid', 'bbox', 'along'].includes(type)) {
         state.map.doubleClickZoom.disable();
     }
 }
@@ -110,7 +108,6 @@ export function handleMeasurementClick(latlng) {
             }
             break;
         case 'area':
-        case 'center':
         case 'centroid':
         case 'bbox':
             if (points.length >= 2) {
@@ -145,7 +142,7 @@ export function completeMeasurement() {
     const points = state.measurement.points;
 
     if (!type || points.length < 2) return;
-    if (['area', 'center', 'centroid', 'bbox'].includes(type) && points.length < 3) return;
+    if (['area', 'centroid', 'bbox'].includes(type) && points.length < 3) return;
 
     let result;
 
@@ -158,9 +155,6 @@ export function completeMeasurement() {
             break;
         case 'area':
             result = calculateArea(points);
-            break;
-        case 'center':
-            result = calculateCenter(points);
             break;
         case 'centroid':
             result = calculateCentroid(points);
@@ -271,53 +265,23 @@ function calculateArea(points) {
     };
 }
 
-function calculateCenter(points) {
-    const coords = points.map(p => [p.lng, p.lat]);
-    coords.push(coords[0]);
-    const polygon = turf.polygon([coords]);
-    const centerPoint = turf.center(polygon);
-    const centerLat = centerPoint.geometry.coordinates[1];
-    const centerLng = centerPoint.geometry.coordinates[0];
-    const areaM2 = turf.area(polygon);
-    const areaHa = areaM2 / 10000;
-    const center = { lat: centerLat, lng: centerLng };
-
-    return {
-        type: 'measurement-center',
-        title: 'Centre de zone',
-        data: { points, center, areaM2, areaHa },
-        displayHtml: `
-            <div class="result-item">
-                <span class="result-label">Centre:</span>
-                <span class="result-value">${formatCoord(center)}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">Surface:</span>
-                <span class="result-value">${formatArea(areaM2)}</span>
-            </div>
-            <div class="result-item">
-                <span class="result-label">Nombre de points:</span>
-                <span class="result-value">${points.length}</span>
-            </div>
-        `
-    };
-}
-
-function calculateCentroid(points) {
-    const coords = points.map(p => [p.lng, p.lat]);
-    coords.push(coords[0]);
-    const polygon = turf.polygon([coords]);
-    const centroidPoint = turf.centerOfMass(polygon);
-    const centroidLat = centroidPoint.geometry.coordinates[1];
-    const centroidLng = centroidPoint.geometry.coordinates[0];
-    const areaM2 = turf.area(polygon);
-    const areaHa = areaM2 / 10000;
+function calculateCentroid(points, weights = null) {
+    const w = weights ?? points.map(() => 1);
+    const totalWeight = w.reduce((a, b) => a + b, 0);
+    const centroidLat = points.reduce((sum, p, i) => sum + w[i] * p.lat, 0) / totalWeight;
+    const centroidLng = points.reduce((sum, p, i) => sum + w[i] * p.lng, 0) / totalWeight;
     const centroid = { lat: centroidLat, lng: centroidLng };
+
+    const coords = points.map(p => [p.lng, p.lat]);
+    coords.push(coords[0]);
+    const polygon = turf.polygon([coords]);
+    const areaM2 = turf.area(polygon);
+    const areaHa = areaM2 / 10000;
 
     return {
         type: 'measurement-centroid',
         title: 'Centre de masse',
-        data: { points, centroid, areaM2, areaHa },
+        data: { points, weights: w, centroid, areaM2, areaHa },
         displayHtml: `
             <div class="result-item">
                 <span class="result-label">Centre de masse:</span>
@@ -347,6 +311,11 @@ function calculateBbox(points) {
     const height = turf.distance([bbox[0], bbox[1]], [bbox[0], bbox[3]], { units: 'kilometers' }) * 1000;
     const minCorner = { lat: bbox[1], lng: bbox[0] };
     const maxCorner = { lat: bbox[3], lng: bbox[2] };
+    const bboxCenterPt = turf.center(bboxPolygon);
+    const bboxCenter = {
+        lat: bboxCenterPt.geometry.coordinates[1],
+        lng: bboxCenterPt.geometry.coordinates[0]
+    };
 
     return {
         type: 'measurement-bbox',
@@ -354,6 +323,7 @@ function calculateBbox(points) {
         data: {
             points,
             bbox: { minLat: bbox[1], minLng: bbox[0], maxLat: bbox[3], maxLng: bbox[2] },
+            bboxCenter,
             width, height, areaM2: bboxArea, areaHa: bboxAreaHa
         },
         displayHtml: `
@@ -364,6 +334,10 @@ function calculateBbox(points) {
             <div class="result-item">
                 <span class="result-label">NE (max):</span>
                 <span class="result-value">${formatCoord(maxCorner)}</span>
+            </div>
+            <div class="result-item">
+                <span class="result-label">Centre:</span>
+                <span class="result-value">${formatCoord(bboxCenter)}</span>
             </div>
             <div class="result-item">
                 <span class="result-label">Dimensions:</span>
@@ -422,7 +396,6 @@ function showMeasurementResult(result) {
         'measurement-distance': 'Distance mesurée',
         'measurement-bearing': 'Azimut calculé',
         'measurement-area': 'Surface mesurée',
-        'measurement-center': 'Centre de zone',
         'measurement-centroid': 'Centre de masse',
         'measurement-bbox': 'Boîte englobante',
         'measurement-along': 'Point sur ligne'
@@ -474,25 +447,12 @@ function saveMeasurementAsElement() {
             );
             break;
 
-        case 'measurement-center':
-            layer = L.layerGroup([
-                L.polygon(result.data.points.map(p => [p.lat, p.lng]), {
-                    color, fillColor: color, fillOpacity: 0.2, weight: 2, dashArray: '5, 5'
-                }),
-                L.circleMarker([result.data.center.lat, result.data.center.lng], {
-                    radius: 8, color, fillColor: color, fillOpacity: 1
-                })
-            ]);
-            break;
-
         case 'measurement-centroid':
             layer = L.layerGroup([
                 L.polygon(result.data.points.map(p => [p.lat, p.lng]), {
                     color, fillColor: color, fillOpacity: 0.2, weight: 2, dashArray: '5, 5'
                 }),
-                L.circleMarker([result.data.centroid.lat, result.data.centroid.lng], {
-                    radius: 8, color, fillColor: color, fillOpacity: 1
-                })
+                createCrossMarker(result.data.centroid.lat, result.data.centroid.lng, color)
             ]);
             break;
 
@@ -504,16 +464,15 @@ function saveMeasurementAsElement() {
                 L.rectangle([
                     [result.data.bbox.minLat, result.data.bbox.minLng],
                     [result.data.bbox.maxLat, result.data.bbox.maxLng]
-                ], { color, fillColor: color, fillOpacity: 0.1, weight: 3 })
+                ], { color, fillColor: color, fillOpacity: 0.1, weight: 3 }),
+                createCrossMarker(result.data.bboxCenter.lat, result.data.bboxCenter.lng, color)
             ]);
             break;
 
         case 'measurement-along':
             layer = L.layerGroup([
                 L.polyline(result.data.points.map(p => [p.lat, p.lng]), { color, weight: 3 }),
-                L.circleMarker([result.data.alongPoint.lat, result.data.alongPoint.lng], {
-                    radius: 8, color, fillColor: color, fillOpacity: 1
-                })
+                createCrossMarker(result.data.alongPoint.lat, result.data.alongPoint.lng, color)
             ]);
             break;
     }

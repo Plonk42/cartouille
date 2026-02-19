@@ -6,6 +6,28 @@
 import { state } from './state.js';
 
 /**
+ * Create a cross marker (L.Marker with DivIcon SVG) for measurement center points
+ * @param {number} lat - Latitude
+ * @param {number} lng - Longitude
+ * @param {string} color - Stroke color
+ * @returns {L.Marker} Non-interactive marker with cross icon
+ */
+export function createCrossMarker(lat, lng, color) {
+    return L.marker([lat, lng], {
+        icon: L.divIcon({
+            className: '',
+            html: `<svg width="20" height="20" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                <line x1="10" y1="1" x2="10" y2="19" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="1" y1="10" x2="19" y2="10" stroke="${color}" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>`,
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
+        }),
+        interactive: false
+    });
+}
+
+/**
  * Create a colored marker icon using Leaflet DivIcon
  * @param {string} color - The color for the marker (hex or CSS color)
  * @returns {L.DivIcon} A Leaflet DivIcon with the specified color

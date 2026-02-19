@@ -7,7 +7,7 @@ import { CONFIG } from './config.js';
 import { createPopupContent, updateElementList } from './elements.js';
 import { saveState } from './persistence.js';
 import { state } from './state.js';
-import { createColoredMarkerIcon } from './utils.js';
+import { createColoredMarkerIcon, createCrossMarker } from './utils.js';
 
 /**
  * Create a Leaflet layer from a GeoJSON feature
@@ -47,6 +47,10 @@ export function createLayerFromFeature(feature) {
             updateElementList();
             saveState();
         });
+    } else if (feature.geometry?.type === 'GeometryCollection') {
+        // Reconstruct LayerGroup for measurement types that use GeometryCollection
+        layer = createMeasurementLayerGroup(feature);
+        layer.feature = feature;
     } else {
         // Use L.geoJSON for other geometries
         const geoJsonLayer = L.geoJSON(feature, {
@@ -64,6 +68,59 @@ export function createLayerFromFeature(feature) {
     }
 
     return layer;
+}
+
+/**
+ * Reconstruct a Leaflet LayerGroup from a measurement GeometryCollection feature
+ * @param {Object} feature - GeoJSON Feature with GeometryCollection geometry
+ * @returns {L.LayerGroup}
+ */
+function createMeasurementLayerGroup(feature) {
+    const props = feature.properties;
+    const type = props.type;
+    const color = props.color || CONFIG.colors.default;
+    const geoms = feature.geometry.geometries;
+
+    const polygonStyle = { color, fillColor: color, fillOpacity: 0.2, weight: 2, dashArray: '5, 5' };
+
+    switch (type) {
+        case 'measurement-centroid': {
+            const polyCoords = geoms[0].coordinates[0].map(c => [c[1], c[0]]);
+            const pt = geoms[1].coordinates;
+            return L.layerGroup([
+                L.polygon(polyCoords, polygonStyle),
+                createCrossMarker(pt[1], pt[0], color)
+            ]);
+        }
+        case 'measurement-bbox': {
+            const polyCoords = geoms[0].coordinates[0].map(c => [c[1], c[0]]);
+            const bboxCoords = geoms[1].coordinates[0].map(c => [c[1], c[0]]);
+            const pt = geoms[2].coordinates;
+            return L.layerGroup([
+                L.polygon(polyCoords, polygonStyle),
+                L.polygon(bboxCoords, { color, fillColor: color, fillOpacity: 0.1, weight: 3 }),
+                createCrossMarker(pt[1], pt[0], color)
+            ]);
+        }
+        case 'measurement-along': {
+            const lineCoords = geoms[0].coordinates.map(c => [c[1], c[0]]);
+            const pt = geoms[1].coordinates;
+            return L.layerGroup([
+                L.polyline(lineCoords, { color, weight: 3 }),
+                createCrossMarker(pt[1], pt[0], color)
+            ]);
+        }
+        default: {
+            // Fallback: render each geometry individually
+            const sublayers = geoms.map(geom => {
+                const subFeature = { type: 'Feature', geometry: geom, properties: props };
+                return L.geoJSON(subFeature, {
+                    style: () => ({ color, fillColor: color, fillOpacity: 0.2, weight: 2 })
+                }).getLayers()[0];
+            }).filter(Boolean);
+            return L.layerGroup(sublayers);
+        }
+    }
 }
 
 /**
@@ -136,12 +193,12 @@ export function elementToGeoJSON(element) {
             break;
         }
 
-        case 'measurement-center':
         case 'measurement-centroid': {
-            const centerPoint = type === 'measurement-center' ? data.center : data.centroid;
-            properties[type === 'measurement-center' ? 'center' : 'centroid'] = centerPoint;
+            const centerPoint = data.centroid;
+            properties.centroid = centerPoint;
             if (data.areaM2) properties.areaM2 = data.areaM2;
             if (data.areaHa) properties.areaHa = data.areaHa;
+            if (data.weights) properties.weights = data.weights;
 
             const polyCoords = data.points.map(p => [p.lng, p.lat]);
             polyCoords.push(polyCoords[0]);
@@ -163,6 +220,7 @@ export function elementToGeoJSON(element) {
             properties.bbox = data.bbox;
             properties.width = data.width;
             properties.height = data.height;
+            properties.bboxCenter = data.bboxCenter;
 
             const bboxCoords = data.points.map(p => [p.lng, p.lat]);
             bboxCoords.push(bboxCoords[0]);
@@ -171,12 +229,13 @@ export function elementToGeoJSON(element) {
                 data.bbox.minLng, data.bbox.minLat,
                 data.bbox.maxLng, data.bbox.maxLat
             ]);
+            const bboxCenterPt = turf.point([data.bboxCenter.lng, data.bboxCenter.lat]);
 
             feature = {
                 type: 'Feature',
                 geometry: {
                     type: 'GeometryCollection',
-                    geometries: [origPoly.geometry, bboxPoly.geometry]
+                    geometries: [origPoly.geometry, bboxPoly.geometry, bboxCenterPt.geometry]
                 },
                 properties: properties
             };

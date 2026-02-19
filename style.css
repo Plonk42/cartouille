@@ -783,6 +783,59 @@ select {
     width: 100%;
 }
 
+/* Centroid weighted-vertices table */
+.centroid-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+.centroid-table th,
+.centroid-table td {
+    padding: 2px 3px;
+    border: 1px solid var(--border);
+    text-align: center;
+}
+
+.centroid-table thead th {
+    background-color: var(--bg-light);
+    font-weight: 600;
+    color: var(--secondary);
+}
+
+.centroid-table .ctd-idx {
+    color: var(--secondary);
+    font-weight: 600;
+    width: 18px;
+}
+
+.centroid-table input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    text-align: center;
+    font-size: 11px;
+    padding: 1px 0;
+    outline: none;
+}
+
+.centroid-table input:focus {
+    background-color: #eaf4fb;
+    border-radius: 2px;
+}
+
+/* Hide number input spinners globally */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
 /* ==========================================================================
    Measurement Status & Results
    ========================================================================== */

@@ -19,7 +19,7 @@ import { state } from './state.js';
 import { openModal } from './utils.js';
 
 /** @constant {Set<string>} Measurement types that use polygon */
-const POLYGON_MEASUREMENTS = new Set(['area', 'center', 'centroid', 'bbox']);
+const POLYGON_MEASUREMENTS = new Set(['area', 'centroid', 'bbox']);
 
 /**
  * Handle mouse move events on the map
@@ -153,6 +153,8 @@ export function handleMapDoubleClick(e) {
     // Handle polygon-based measurement double-click
     if (POLYGON_MEASUREMENTS.has(state.measurement.active) && state.measurement.points.length >= 3) {
         L.DomEvent.stopPropagation(e);
+        // The second click of the double-click already added a duplicate point — remove it
+        state.measurement.points.pop();
         completeMeasurement();
         return;
     }
@@ -160,6 +162,8 @@ export function handleMapDoubleClick(e) {
     // Handle line-based measurement double-click (along)
     if (state.measurement.active === 'along' && state.measurement.points.length >= 2) {
         L.DomEvent.stopPropagation(e);
+        // The second click of the double-click already added a duplicate point — remove it
+        state.measurement.points.pop();
         completeMeasurement();
         return;
     }
@@ -167,6 +171,8 @@ export function handleMapDoubleClick(e) {
     // Handle line drawing double-click
     if (state.activeTool === 'line' && state.drawing.points?.length >= 2) {
         L.DomEvent.stopPropagation(e);
+        // The second click of the double-click already added a duplicate point — remove it
+        state.drawing.points.pop();
         finishLine();
         return;
     }
@@ -174,6 +180,8 @@ export function handleMapDoubleClick(e) {
     // Handle polygon drawing double-click
     if (state.activeTool === 'polygon' && state.drawing.points?.length >= 3) {
         L.DomEvent.stopPropagation(e);
+        // The second click of the double-click already added a duplicate point — remove it
+        state.drawing.points.pop();
         finishPolygon();
     }
 }

@@ -308,20 +308,42 @@ function createDistanceBearingFields(feature) {
 function createPolygonMeasurementFields(feature) {
     const props = feature.properties;
     const type = props.type;
+
+    if (type === 'measurement-centroid') {
+        const geom = feature.geometry;
+        let polyCoords;
+        if (geom.type === 'GeometryCollection') {
+            polyCoords = geom.geometries[0].coordinates[0].slice(0, -1);
+        } else {
+            polyCoords = geom.coordinates[0].slice(0, -1);
+        }
+        const weights = props.weights ?? polyCoords.map(() => 1);
+        const pointsStr = polyCoords.map((c, i) =>
+            `${c[1].toFixed(6)}, ${c[0].toFixed(6)}, ${(weights[i] ?? 1).toFixed(1)}`
+        ).join('\n');
+
+        let html = `
+            <div class="popup-field">
+                <label class="popup-label">Points (Lat, Lng, Poids):</label>
+                <textarea class="popup-textarea points-input" style="height: 110px;" placeholder="lat, lng, poids">${pointsStr}</textarea>
+            </div>`;
+
+        if (props.areaM2 !== undefined) html += computedField('Surface', formatArea(props.areaM2));
+        if (props.centroid) html += computedField('Centre de masse', formatCoord(props.centroid));
+        return html;
+    }
+
     const coords = getCoords(feature.geometry, true);
     let html = pointsTextarea(coords, true);
 
     if (props.areaM2 !== undefined) {
         html += computedField('Surface', formatArea(props.areaM2));
     }
-    if (type === 'measurement-center' && props.center) {
-        html += computedField('Centre', formatCoord(props.center));
-    }
-    if (type === 'measurement-centroid' && props.centroid) {
-        html += computedField('Centre de masse', formatCoord(props.centroid));
-    }
     if (type === 'measurement-bbox' && props.bbox) {
         html += computedField('Dimensions', `${props.width.toFixed(1)}m × ${props.height.toFixed(1)}m`);
+        if (props.bboxCenter) {
+            html += computedField('Centre', formatCoord(props.bboxCenter));
+        }
     }
     return html;
 }
@@ -358,7 +380,7 @@ function createAlongFields(feature) {
 }
 
 /** @constant {Set<string>} Polygon-based measurement types */
-const POLYGON_MEASUREMENT_TYPES = new Set(['measurement-area', 'measurement-center', 'measurement-centroid', 'measurement-bbox']);
+const POLYGON_MEASUREMENT_TYPES = new Set(['measurement-area', 'measurement-centroid', 'measurement-bbox']);
 
 /**
  * Create measurement-specific popup fields
@@ -462,7 +484,12 @@ export function updateElementFromPopup(feature, div) {
 
     updateElementList();
     saveState();
-    layer.closePopup();
+    // LayerGroup (e.g. measurement-center/centroid) has no direct popup — close via the map
+    if (layer instanceof L.LayerGroup) {
+        state.map.closePopup();
+    } else {
+        layer.closePopup();
+    }
 }
 
 /**
@@ -616,6 +643,139 @@ function updateBearingFromPopup(feature, div, layer) {
 }
 
 /**
+ * Update polygon-based measurement (center, centroid, area, bbox) from popup points textarea
+ */
+function updatePolygonMeasurementFromPopup(feature, div, layer) {
+    const props = feature.properties;
+    const type = props.type;
+
+    if (type === 'measurement-centroid') {
+        // Read from weighted points textarea (lat, lng[, weight] per line)
+        const pointsText = div.querySelector('.points-input')?.value;
+        if (!pointsText) return;
+
+        const newPoints = [];
+        const newWeights = [];
+        for (const line of pointsText.split('\n')) {
+            const parts = line.split(',').map(s => s.trim());
+            const lat = parseFloat(parts[0]);
+            const lng = parseFloat(parts[1]);
+            const weight = parseFloat(parts[2] ?? '1') || 1;
+            if (isNaN(lat) || isNaN(lng)) continue;
+            newPoints.push({ lat, lng });
+            newWeights.push(weight);
+        }
+        if (newPoints.length < 3) return;
+
+        const totalWeight = newWeights.reduce((a, b) => a + b, 0);
+        const centroid = {
+            lat: newPoints.reduce((sum, p, i) => sum + newWeights[i] * p.lat, 0) / totalWeight,
+            lng: newPoints.reduce((sum, p, i) => sum + newWeights[i] * p.lng, 0) / totalWeight
+        };
+
+        const coords = newPoints.map(p => [p.lng, p.lat]);
+        const closedCoords = [...coords, coords[0]];
+        const polygon = turf.polygon([closedCoords]);
+        const areaM2 = turf.area(polygon);
+
+        props.weights = newWeights;
+        props.centroid = centroid;
+        props.areaM2 = areaM2;
+        props.areaHa = areaM2 / 10000;
+
+        if (feature.geometry.type === 'GeometryCollection') {
+            feature.geometry.geometries[0].coordinates = [closedCoords];
+            feature.geometry.geometries[1].coordinates = [centroid.lng, centroid.lat];
+        }
+
+        const sublayers = [];
+        if (layer instanceof L.LayerGroup) {
+            layer.eachLayer(sub => sublayers.push(sub));
+        }
+        if (sublayers[0]?.setLatLngs) {
+            sublayers[0].setLatLngs(newPoints.map(p => [p.lat, p.lng]));
+        }
+        if (sublayers[1]?.setLatLng) {
+            sublayers[1].setLatLng([centroid.lat, centroid.lng]);
+        }
+        return;
+    }
+
+    const pointsText = div.querySelector('.points-input')?.value;
+    if (!pointsText) return;
+
+    const newPoints = parsePointsFromText(pointsText);
+    if (newPoints.length < 3) return;
+
+    const coords = newPoints.map(p => [p.lng, p.lat]);
+    const closedCoords = [...coords, coords[0]];
+    const polygon = turf.polygon([closedCoords]);
+    const areaM2 = turf.area(polygon);
+
+    // Update polygon geometry
+    if (feature.geometry.type === 'GeometryCollection') {
+        feature.geometry.geometries[0].coordinates = [closedCoords];
+    } else {
+        feature.geometry.coordinates = [closedCoords];
+    }
+    props.areaM2 = areaM2;
+    props.areaHa = areaM2 / 10000;
+
+    // Collect sublayers for LayerGroup (center/centroid/bbox)
+    const sublayers = [];
+    if (layer instanceof L.LayerGroup) {
+        layer.eachLayer(sub => sublayers.push(sub));
+    }
+
+    // Update the polygon sublayer (or the layer itself for measurement-area)
+    const polyLayer = sublayers[0] ?? layer;
+    if (polyLayer?.setLatLngs) {
+        polyLayer.setLatLngs(newPoints.map(p => [p.lat, p.lng]));
+    }
+
+    if (type === 'measurement-area') {
+        const areaKm2 = areaM2 / 1000000;
+        const line = turf.lineString(closedCoords);
+        const perimeterKm = turf.length(line, { units: 'kilometers' });
+        props.areaKm2 = areaKm2;
+        props.perimeterM = perimeterKm * 1000;
+        props.perimeterKm = perimeterKm;
+    } else if (type === 'measurement-bbox') {
+        const bbox = turf.bbox(polygon);
+        const bboxPoly = turf.bboxPolygon(bbox);
+        const bboxArea = turf.area(bboxPoly);
+        const width = turf.distance([bbox[0], bbox[1]], [bbox[2], bbox[1]], { units: 'kilometers' }) * 1000;
+        const height = turf.distance([bbox[0], bbox[1]], [bbox[0], bbox[3]], { units: 'kilometers' }) * 1000;
+        props.bbox = { minLat: bbox[1], minLng: bbox[0], maxLat: bbox[3], maxLng: bbox[2] };
+        props.width = width;
+        props.height = height;
+        props.areaM2 = bboxArea;
+        props.areaHa = bboxArea / 10000;
+        const bboxCenterPoint = turf.center(bboxPoly);
+        const bboxCenter = {
+            lat: bboxCenterPoint.geometry.coordinates[1],
+            lng: bboxCenterPoint.geometry.coordinates[0]
+        };
+        props.bboxCenter = bboxCenter;
+        if (feature.geometry.type === 'GeometryCollection') {
+            feature.geometry.geometries[1].coordinates = bboxPoly.geometry.coordinates;
+            if (feature.geometry.geometries[2]) {
+                feature.geometry.geometries[2].coordinates = [bboxCenter.lng, bboxCenter.lat];
+            }
+        }
+        if (sublayers[1]?.setLatLngs) {
+            // Convert bbox polygon coords [lng,lat] → [lat,lng] for Leaflet
+            sublayers[1].setLatLngs(
+                bboxPoly.geometry.coordinates[0].map(c => [c[1], c[0]])
+            );
+        }
+        if (sublayers[2]?.setLatLng) {
+            sublayers[2].setLatLng([bboxCenter.lat, bboxCenter.lng]);
+        }
+    }
+}
+
+/**
  * Update measurement from popup (handles all measurement types)
  */
 function updateMeasurementFromPopup(feature, div, layer) {
@@ -658,8 +818,9 @@ function updateMeasurementFromPopup(feature, div, layer) {
                 props.cardinal = getCardinalDirection(props.bearing);
             }
         }
+    } else if (POLYGON_MEASUREMENT_TYPES.has(type)) {
+        updatePolygonMeasurementFromPopup(feature, div, layer);
     }
-    // Additional measurement type handlers could be added here
 }
 
 /**
