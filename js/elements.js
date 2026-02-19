@@ -197,11 +197,19 @@ function createTypeSpecificFields(feature) {
     let html = '';
 
     if (type === 'marker') {
-        html += createPopupField('Latitude', 'number', geom.coordinates[1], 'lat-input');
-        html += createPopupField('Longitude', 'number', geom.coordinates[0], 'lng-input');
+        const coordStr = `${geom.coordinates[1].toFixed(6)}, ${geom.coordinates[0].toFixed(6)}`;
+        html += `
+            <div class="popup-field">
+                <label class="popup-label">Position (Lat, Lng):</label>
+                <input type="text" class="popup-input coord-input" value="${coordStr}" placeholder="lat, lng">
+            </div>`;
     } else if (type === 'circle') {
-        html += createPopupField('Centre Lat', 'number', geom.coordinates[1], 'lat-input');
-        html += createPopupField('Centre Lng', 'number', geom.coordinates[0], 'lng-input');
+        const coordStr = `${geom.coordinates[1].toFixed(6)}, ${geom.coordinates[0].toFixed(6)}`;
+        html += `
+            <div class="popup-field">
+                <label class="popup-label">Centre (Lat, Lng):</label>
+                <input type="text" class="popup-input coord-input" value="${coordStr}" placeholder="lat, lng">
+            </div>`;
         html += createPopupField('Rayon (m)', 'number', props.radius, 'radius-input');
     } else if (type === 'line') {
         const coords = geom.coordinates;
@@ -542,9 +550,11 @@ function parseInputValue(container, selector) {
  * Update marker position from popup
  */
 function updateMarkerFromPopup(feature, div, layer) {
-    const lat = parseInputValue(div, '.lat-input');
-    const lng = parseInputValue(div, '.lng-input');
-    if (lat !== null && lng !== null) {
+    const raw = div.querySelector('.coord-input')?.value ?? '';
+    const parts = raw.split(',').map(s => s.trim());
+    const lat = parseFloat(parts[0]);
+    const lng = parseFloat(parts[1]);
+    if (isFinite(lat) && isFinite(lng)) {
         feature.geometry.coordinates = [lng, lat];
         layer.setLatLng([lat, lng]);
     }
